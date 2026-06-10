@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestor de Tareas Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="img/hapa_192.png">
+    <meta name="theme-color" content="#1d4ed8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <!-- HTML5 QR Code Scanner -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Quill Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <style>
+        /* Custom scrollbar para un look más limpio */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Ocultar flechas en inputs numéricos */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* Animaciones suaves */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .slide-down { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 0; }
+        .slide-down.active { max-height: 1000px; } /* Altura arbitraria grande para expandir */
+
+        /* Estilos móviles base */
+        body { -webkit-tap-highlight-color: transparent; }
+        
+        /* Estilos para el editor Quill y contenido enriquecido */
+        .ql-toolbar.ql-snow { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; border-color: #e2e8f0; font-family: inherit; }
+        .ql-container.ql-snow { border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; border-color: #e2e8f0; font-family: inherit; font-size: 0.875rem; }
+        .rich-text ul { list-style-type: disc; margin-left: 1.5rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+        .rich-text ol { list-style-type: decimal; margin-left: 1.5rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+        .rich-text b, .rich-text strong { font-weight: bold; }
+        .rich-text i, .rich-text em { font-style: italic; }
+        .rich-text u { text-decoration: underline; }
+        .rich-text s { text-decoration: line-through; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white shadow-md z-10">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="ph-fill ph-check-square-offset text-2xl"></i>
+                <h1 class="font-bold text-lg tracking-wide">Gestor<span class="font-light">Tareas</span></h1>
+            </div>
+            <button id="btn-logout" onclick="app.logout()" class="hidden text-sm bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                <i class="ph ph-sign-out"></i> Salir
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area (Scrollable) -->
+    <main class="flex-1 overflow-y-auto relative pb-20 md:pb-0" id="main-scroll">
+        
+        <!-- ================= VIEW: LOGIN ================= -->
+        <section id="view-login" class="p-4 max-w-sm mx-auto mt-10 fade-in flex flex-col gap-4">
+            <div class="text-center mb-4">
+                <i class="ph-fill ph-lock-key text-5xl text-blue-600 mb-2"></i>
+                <h2 class="text-2xl font-bold text-slate-700">Iniciar Sesión</h2>
+                <p class="text-slate-500 text-sm">Ingrese sus credenciales para acceder</p>
+            </div>
+            <form onsubmit="app.login(event)" class="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
+                    <i class="ph ph-sign-in"></i> Entrar
+                </button>
+                <p id="login-error-msg" class="text-red-500 text-sm text-center hidden"></p>
+                
+                <!-- Indicador de conexión -->
+                <div id="connection-status" class="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 transition-colors">
+                    <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="connection-dot"></div>
+                    <span id="connection-text">Verificando conexión...</span>
+                </div>
+            </form>
+        </section>
+
+        <!-- ================= VIEW: SEARCH & LOG ================= -->
+        <section id="view-search" class="p-4 max-w-2xl mx-auto hidden fade-in">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-slate-700 mb-2">Buscar Tarea Pendiente</h2>
+                <div class="flex gap-2 relative">
+                    <div class="relative flex-1">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xl"></i>
+                        <input type="text" id="search-input" oninput="app.handleSearch()" placeholder="Ingrese ID (ej. T-01) o título..." 
+                               class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+                    </div>
+                    <button onclick="app.toggleScanner()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Escanear Ticket">
+                        <i class="ph ph-barcode text-2xl"></i>
+                    </button>
+                </div>
+                <!-- Contenedor del escáner -->
+                <div id="scanner-container" class="hidden mt-4 bg-white p-2 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div id="reader" width="100%"></div>
+                    <button onclick="app.toggleScanner()" class="w-full mt-2 text-red-500 font-medium py-2 text-sm hover:bg-red-50 rounded-lg transition-colors">Cerrar Escáner</button>
+                </div>
+                <!-- Filtro "Mis Tareas" -->
+                <div id="filter-container" class="hidden items-center justify-end gap-3 mt-4">
+                    <span class="text-sm font-medium text-slate-700">Mostrar solo mis tareas</span>
+                    <label for="my-tasks-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" id="my-tasks-toggle" class="sr-only peer" onchange="app.handleSearch()">
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <div id="search-results" class="space-y-4">
+                <!-- Results will be populated here -->
+                <div class="text-center text-slate-400 mt-10">
+                    <i class="ph ph-list-checks text-4xl mb-2"></i>
+                    <p>Comience a escribir para buscar tareas pendientes</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= VIEW: HISTORY ================= -->
+        <section id="view-history" class="p-4 max-w-3xl mx-auto hidden fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-slate-700">Tareas Completadas</h2>
+                <button onclick="app.exportToCSV()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                    <i class="ph ph-download-simple"></i> Exportar
+                </button>
+            </div>
+            
+            <div id="history-list" class="space-y-3">
+                <!-- Logs will go here -->
+            </div>
+        </section>
+
+        <!-- ================= VIEW: ADMIN ================= -->
+        <section id="view-admin" class="p-4 max-w-3xl mx-auto hidden fade-in">
+            <h2 class="text-xl font-bold text-slate-700 mb-4">Panel de Administración</h2>
+
+            <!-- Notification Settings -->
+            <div id="admin-notifications" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-semibold text-slate-700 mb-2">Notificaciones Push</h3>
+                <p class="text-sm text-slate-500 mb-4">Recibe un aviso cuando se te asigne una nueva tarea. Esto requiere permisos en tu navegador.</p>
+                <div id="notification-status-ui">
+                    <!-- Status will be rendered here by JS -->
+                </div>
+            </div>
+            
+            <!-- Admin Tabs -->
+            <div class="flex bg-slate-200 rounded-lg p-1 mb-6">
+                <button onclick="app.switchAdminTab('tasks')" id="tab-tasks" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-blue-700">Tareas</button>
+                <button onclick="app.switchAdminTab('areas')" id="tab-areas" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Áreas</button>
+                <button onclick="app.switchAdminTab('employees')" id="tab-employees" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Personal</button>
+            </div>
+
+            <!-- Admin Content: Tasks -->
+            <div id="admin-tasks" class="space-y-4">
+                <form onsubmit="app.addTask(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3">
+                    <h3 class="font-semibold text-slate-700 mb-1">Añadir Nueva Tarea</h3>
+                    <div class="flex flex-col gap-3">
+                        <input type="text" id="new-task-title" placeholder="Título de la tarea" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <div class="bg-white">
+                            <div id="new-task-description" style="min-height: 100px;"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <select id="new-task-area" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <!-- Areas populated dynamically -->
+                        </select>
+                        <select id="new-task-employee" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="">Asignar a Persona...</option>
+                            <!-- Employees populated dynamically -->
+                        </select>
+                        <select id="new-task-priority" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="">Prioridad...</option>
+                            <option value="baja">Baja</option>
+                            <option value="media">Media</option>
+                            <option value="alta">Alta</option>
+                        </select>
+                        <select id="new-task-requires-count" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="">Tipo de registro...</option>
+                            <option value="false">Por Horas</option>
+                            <option value="true">Por Conteo Numérico</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-blue-600 text-white py-2 rounded-lg font-medium w-full flex items-center justify-center gap-2">
+                        <i class="ph ph-plus-circle"></i> Crear Tarea
+                    </button>
+                </form>
+                <div id="admin-task-list" class="space-y-2 mt-4"></div>
+            </div>
+
+            <!-- Admin Content: Areas -->
+            <div id="admin-areas" class="space-y-4 hidden">
+                <form onsubmit="app.addArea(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex gap-2">
+                    <input type="text" id="new-area-name" placeholder="Nombre del Área (ej. Almacén Principal)" required class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium"><i class="ph ph-plus"></i></button>
+                </form>
+                <div id="admin-area-list" class="space-y-2 mt-4"></div>
+            </div>
+
+            <!-- Admin Content: Employees -->
+            <div id="admin-employees" class="space-y-4 hidden">
+                <form onsubmit="app.addEmployee(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3">
+                    <h3 class="font-semibold text-slate-700 mb-1">Añadir Personal</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input type="text" id="new-emp-name" placeholder="Nombre completo" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="email" id="new-emp-email" placeholder="Correo electrónico de sesión" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" id="new-emp-role" placeholder="Cargo (ej. Almacenista)" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select id="new-emp-area" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <!-- Areas populated dynamically -->
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-blue-600 text-white py-2 rounded-lg font-medium w-full flex items-center justify-center gap-2">
+                        <i class="ph ph-user-plus"></i> Registrar Empleado
+                    </button>
+                </form>
+                <div id="admin-employee-list" class="space-y-2 mt-4"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation (Mobile mostly, fixed bottom) -->
+    <nav id="bottom-nav" class="hidden bg-white border-t border-slate-200 md:relative absolute bottom-0 w-full z-20 pb-safe">
+        <div class="flex justify-around max-w-2xl mx-auto">
+            <button onclick="app.switchView('search')" id="nav-search" class="flex-1 py-3 flex flex-col items-center text-blue-600 transition-colors">
+                <i class="ph-fill ph-list-checks text-2xl mb-1"></i>
+                <span class="text-[10px] font-medium uppercase tracking-wider">Tareas</span>
+            </button>
+            <button onclick="app.switchView('history')" id="nav-history" class="flex-1 py-3 flex flex-col items-center text-slate-400 hover:text-blue-500 transition-colors">
+                <i class="ph-fill ph-clipboard-text text-2xl mb-1"></i>
+                <span class="text-[10px] font-medium uppercase tracking-wider">Registros</span>
+            </button>
+            <button onclick="app.switchView('admin')" id="nav-admin" class="flex-1 py-3 flex flex-col items-center text-slate-400 hover:text-blue-500 transition-colors">
+                <i class="ph-fill ph-gear text-2xl mb-1"></i>
+                <span class="text-[10px] font-medium uppercase tracking-wider">Ajustes</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-16 right-0 left-0 flex flex-col items-center space-y-2 z-50 pointer-events-none px-4"></div>
+
+    <script>
+        // --- Configuración de Firebase ---
+        // Reemplaza esto con los datos de tu consola de Firebase
+        const firebaseConfig = {
+  apiKey: "AIzaSyBvZepD2QxQIYD9whn6QcLu00hbHbIAXjA",
+  authDomain: "rifahepa-c1a75.firebaseapp.com",
+  projectId: "rifahepa-c1a75",
+  storageBucket: "rifahepa-c1a75.firebasestorage.app",
+  messagingSenderId: "319515414583",
+  appId: "1:319515414583:web:21d5ce147da4afb981afb2"
+};
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const messaging = firebase.messaging();
+
+        // --- Core Application Logic ---
+        const app = {
+            // State
+            data: {
+                tasks: [],
+                products: [], // Para detectar y limpiar datos antiguos
+                areas: [],
+                employees: [],
+                logs: []
+            },
+            isAdmin: true, // Todos los autenticados tienen privilegios de admin
+            currentView: 'login',
+            currentAdminTab: 'tasks',
+            activeSearchId: null,
+            editingLogId: null,
+            currentUserEmployeeId: null,
+            isScanning: false,
+            html5QrcodeScanner: null,
+            quill: null, // Instancia del editor de texto
+
+            // Initialize App
+            init() {
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        document.getElementById('btn-logout').classList.remove('hidden');
+                        document.getElementById('bottom-nav').classList.remove('hidden');
+                        this.loadData();
+                        this.switchView('search');
+                    } else {
+                        document.getElementById('btn-logout').classList.add('hidden');
+                        document.getElementById('bottom-nav').classList.add('hidden');
+                        this.data = { tasks: [], areas: [], employees: [], logs: [] };
+                        this.switchView('login');
+                    }
+                });
+
+                // Configurar listeners de conexión
+                window.addEventListener('online', () => this.updateConnectionStatus(true));
+                window.addEventListener('offline', () => this.updateConnectionStatus(false));
+                this.updateConnectionStatus(navigator.onLine);
+            },
+
+            updateConnectionStatus(isOnline) {
+                const dot = document.getElementById('connection-dot');
+                const text = document.getElementById('connection-text');
+                const container = document.getElementById('connection-status');
+                
+                if (!dot || !text || !container) return;
+
+                if (isOnline) {
+                    container.className = "mt-4 flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 transition-colors";
+                    dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                    text.textContent = "Conectado a la base de datos";
+                } else {
+                    container.className = "mt-4 flex items-center justify-center gap-2 text-xs font-medium text-red-600 transition-colors";
+                    dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                    text.textContent = "Sin conexión a internet";
+                }
+            },
+
+            // --- Data Management (Firebase Firestore) ---
+            async loadData() {
+                try {
+                    const docSnap = await db.collection('inventario').doc('datos').get();
+                    if (docSnap.exists) {
+                        const dbData = docSnap.data();
+                        // Asegurar que las listas existan para evitar errores con estructuras antiguas
+                        this.data = {
+                            tasks: dbData.tasks || [],
+                            products: dbData.products || [],
+                            areas: dbData.areas || [],
+                            employees: dbData.employees || [],
+                            logs: dbData.logs || []
+                        };
+                    } else {
+                        // Seed initial dummy data as requested
+                        this.data.areas = [
+                            { id: 'a1', name: 'Desarrollo de Software' },
+                            { id: 'a2', name: 'Soporte Técnico' }
+                        ];
+                        this.data.employees = [
+                            { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
+                            { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
+                        ];
+                        const now = Date.now();
+                        const dayMs = 24 * 60 * 60 * 1000;
+                        this.data.tasks = [
+                            { id: 't1', code: 'T-001', title: 'Actualizar servidor central', description: 'Realizar parche de seguridad y reiniciar.', areaId: 'a1', employeeId: 'e1', priority: 'baja', requiresCount: false, createdAt: new Date(now - (1 * dayMs)).toISOString() },
+                            { id: 't2', code: 'T-002', title: 'Revisión de red en piso 2', description: 'Verificar 25 puntos de red y etiquetar.', areaId: 'a2', employeeId: 'e2', priority: 'alta', requiresCount: true, createdAt: new Date(now - (2 * dayMs)).toISOString() },
+                            { id: 't3', code: 'T-003', title: 'Migración de base de datos', description: 'Pasar la base de datos de clientes al nuevo cluster.', areaId: 'a1', employeeId: 'e1', priority: 'media', requiresCount: false, createdAt: new Date(now - (3 * dayMs)).toISOString() }
+                        ];
+                        this.saveData();
+                    }
+
+                    // Find current user's employee record
+                    const currentUser = auth.currentUser;
+                    this.currentUserEmployeeId = null; // Reset
+                    if (currentUser && this.data.employees) {
+                        const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
+                        if (myEmployeeRecord) {
+                            this.currentUserEmployeeId = myEmployeeRecord.id;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error cargando de Firebase", error);
+                    this.showToast('Error conectando a la base de datos', 'error');
+                }
+                
+                this.setupDOM();
+                this.initNotifications();
+                this.renderAll();
+            },
+
+            async saveData() {
+                try {
+                    await db.collection('inventario').doc('datos').set(this.data);
+                    this.renderDynamicSelects();
+                } catch (error) {
+                    console.error("Error guardando en Firebase", error);
+                    this.showToast('Error al guardar datos', 'error');
+                }
+            },
+
+            // --- Authentication ---
+            async login(e) {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                const errorMsg = document.getElementById('login-error-msg');
+                
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                    errorMsg.classList.add('hidden');
+                    document.getElementById('login-password').value = '';
+                    this.showToast('Sesión iniciada', 'success');
+                } catch (error) {
+                    errorMsg.textContent = 'Credenciales incorrectas.';
+                    errorMsg.classList.remove('hidden');
+                }
+            },
+
+            async logout() {
+                try {
+                    await auth.signOut();
+                    this.showToast('Sesión cerrada', 'info');
+                } catch (error) {
+                    console.error("Error al cerrar sesión", error);
+                }
+            },
+
+            // --- PWA & Notifications ---
+            initNotifications() {
+                const ui = document.getElementById('notification-status-ui');
+                if (!('Notification' in window) || !ui) return;
+
+                const permission = Notification.permission;
+
+                if (permission === 'granted') {
+                    ui.innerHTML = `<p class="text-sm font-medium text-emerald-600 flex items-center gap-2"><i class="ph-fill ph-check-circle"></i> Notificaciones activadas.</p>`;
+                    // Ensure token is saved if permission was already granted
+                    this.getAndSaveToken();
+                } else if (permission === 'denied') {
+                    ui.innerHTML = `<p class="text-sm font-medium text-red-600 flex items-center gap-2"><i class="ph-fill ph-x-circle"></i> Notificaciones bloqueadas. Debes activarlas en los ajustes del navegador.</p>`;
+                } else {
+                    ui.innerHTML = `<button onclick="app.requestNotificationPermission()" class="bg-blue-600 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"><i class="ph ph-bell"></i> Activar Notificaciones</button>`;
+                }
+            },
+
+            async requestNotificationPermission() {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        this.showToast('¡Permiso concedido!', 'success');
+                        this.getAndSaveToken();
+                    } else {
+                        this.showToast('Permiso de notificaciones denegado.', 'info');
+                    }
+                    this.initNotifications(); // Update UI
+                } catch (error) {
+                    console.error('Error solicitando permiso de notificación', error);
+                    this.showToast('Error al solicitar permiso.', 'error');
+                }
+            },
+
+            async getAndSaveToken() {
+                if (!this.currentUserEmployeeId) return;
+                const vapidKey = "BFB_9A-wX_iGkCgPj1eJtZ-YwV-1w_j_q_R_k_X_y_Z_a_B_c_D_e_F_g_H_i_J_k_L_m_N_o_P_q_R_s_T_u_V_w_X_y_Z"; // ⚠️ Reemplaza esto
+                const token = await messaging.getToken({ vapidKey: vapidKey });
+                if (token) {
+                    const employee = this.data.employees.find(e => e.id === this.currentUserEmployeeId);
+                    if (employee && employee.fcmToken !== token) {
+                        employee.fcmToken = token;
+                        await this.saveData();
+                        console.log('FCM Token guardado:', token);
+                    }
+                } else {
+                    console.log('No se pudo obtener el token de registro.');
+                }
+            },
+
+            // --- UI Navigation ---
+            switchView(viewId) {
+                this.currentView = viewId;
+                
+                // Hide all sections
+                ['view-login', 'view-search', 'view-history', 'view-admin'].forEach(id => {
+                    document.getElementById(id).classList.add('hidden');
+                });
+                // Show target
+                document.getElementById(`view-${viewId}`).classList.remove('hidden');
+
+                // Update Nav icons
+                ['search', 'history', 'admin'].forEach(id => {
+                    const btn = document.getElementById(`nav-${id}`);
+                    if (!btn) return;
+                    if (id === viewId) {
+                        btn.classList.add('text-blue-600');
+                        btn.classList.remove('text-slate-400');
+                        btn.querySelector('i').classList.add('ph-fill');
+                        btn.querySelector('i').classList.remove('ph');
+                    } else {
+                        btn.classList.remove('text-blue-600');
+                        btn.classList.add('text-slate-400');
+                        btn.querySelector('i').classList.remove('ph-fill');
+                        btn.querySelector('i').classList.add('ph');
+                    }
+                });
+
+                if (viewId === 'history') this.renderHistory();
+            },
+
+            switchAdminTab(tabId) {
+                this.currentAdminTab = tabId;
+                
+                ['tasks', 'areas', 'employees'].forEach(id => {
+                    document.getElementById(`admin-${id}`).classList.add('hidden');
+                    const btn = document.getElementById(`tab-${id}`);
+                    btn.classList.remove('bg-white', 'shadow-sm', 'text-blue-700');
+                    btn.classList.add('text-slate-600');
+                });
+
+                document.getElementById(`admin-${tabId}`).classList.remove('hidden');
+                const activeBtn = document.getElementById(`tab-${tabId}`);
+                activeBtn.classList.remove('text-slate-600');
+                activeBtn.classList.add('bg-white', 'shadow-sm', 'text-blue-700');
+            },
+
+            setupDOM() {
+                this.renderDynamicSelects();
+                
+                // Inicializar Quill Editor
+                if (!this.quill) {
+                    this.quill = new Quill('#new-task-description', {
+                        theme: 'snow',
+                        placeholder: 'Descripción detallada de la acción...',
+                        modules: {
+                            toolbar: [
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{'list': 'ordered'}, {'list': 'bullet'}],
+                                [{'color': []}, {'background': []}],
+                                ['clean'] // Botón para quitar formato
+                            ]
+                        }
+                    });
+                }
+            },
+
+            // --- Helper: UI Feedback ---
+            showToast(message, type = 'success') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                const colors = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-red-600' : 'bg-blue-600');
+                const icon = type === 'success' ? 'ph-check-circle' : 'ph-info';
+                
+                toast.className = `${colors} text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transform transition-all duration-300 opacity-0 translate-y-[-20px] pointer-events-auto`;
+                toast.innerHTML = `<i class="ph ${icon} text-lg"></i> <span class="text-sm font-medium">${message}</span>`;
+                
+                container.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => { toast.classList.remove('opacity-0', 'translate-y-[-20px]'); }, 10);
+                
+                // Animate out and remove
+                setTimeout(() => {
+                    toast.classList.add('opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            },
+
+            // --- Features: Barcode Scanner ---
+            toggleScanner() {
+                const container = document.getElementById('scanner-container');
+                if (this.isScanning) {
+                    if (this.html5QrcodeScanner) {
+                        this.html5QrcodeScanner.clear();
+                    }
+                    container.classList.add('hidden');
+                    this.isScanning = false;
+                } else {
+                    container.classList.remove('hidden');
+                    this.isScanning = true;
+                    
+                    if (!this.html5QrcodeScanner) {
+                        this.html5QrcodeScanner = new Html5QrcodeScanner(
+                            "reader", { fps: 10, qrbox: {width: 250, height: 150}, aspectRatio: 1.0 }, false
+                        );
+                    }
+                    
+                    this.html5QrcodeScanner.render((decodedText, decodedResult) => {
+                        document.getElementById('search-input').value = decodedText;
+                        this.toggleScanner(); // Cerrar cámara
+                        this.handleSearch();  // Buscar producto
+                        this.showToast('Código escaneado', 'success');
+                    }, undefined); // Ignoramos los errores por frame vacío
+                }
+            },
+
+            // --- Features: Checklist & Inputs ---
+            generateTaskInputs(task, log = null) {
+                const prefix = log ? 'edit' : 'log';
+                const id = log ? log.id : task.id;
+
+                // Case 1: Checklist
+                const isChecklist = task.requiresCount && task.description && task.description.includes('<li>');
+                if (isChecklist) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(task.description, 'text/html');
+                    const items = doc.querySelectorAll('li');
+                    let checklistHtml = '<div class="space-y-2">';
+                    items.forEach((item, index) => {
+                        const itemText = item.textContent.trim();
+                        let savedCount = '';
+                        if (log && log.checklistCounts) {
+                            const savedItem = log.checklistCounts.find(c => c.text === itemText);
+                            savedCount = savedItem ? savedItem.count : 0;
+                        }
+
+                        if (itemText) {
+                            checklistHtml += `
+                                <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200">
+                                    <label for="${prefix}-checklist-item-${id}-${index}" class="text-sm text-slate-700 flex-1">${itemText}</label>
+                                    <input type="number" id="${prefix}-checklist-item-${id}-${index}" data-item-text="${itemText}" value="${savedCount}" min="0" placeholder="0" class="w-20 p-1.5 text-center rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                                </div>
+                            `;
+                        }
+                    });
+                    checklistHtml += '</div>';
+                    return checklistHtml;
+                }
+
+                // Case 2: Simple Count
+                if (task.requiresCount) {
+                    const value = log && log.quantityCounted !== null ? log.quantityCounted : '';
+                    return `<div><label class="block text-xs font-semibold text-slate-500 mb-1">Cantidad Contada</label><input type="number" id="${prefix}-qty-${id}" value="${value}" required min="0" placeholder="Ej. 25" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>`;
+                }
+
+                // Case 3: Hours
+                const value = log && log.hoursSpent !== null ? log.hoursSpent : '';
+                return `<div><label class="block text-xs font-semibold text-slate-500 mb-1">Horas Invertidas (Aprox)</label><input type="number" id="${prefix}-hours-${id}" value="${value}" required min="0" step="0.5" placeholder="Ej. 2.5" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>`;
+            },
+
+            // --- Features: Search & Log ---
+            handleSearch() {
+                const query = document.getElementById('search-input').value.toLowerCase().trim();
+                const container = document.getElementById('search-results');
+                const showOnlyMyTasks = document.getElementById('my-tasks-toggle')?.checked || false;
+                
+                // Filtrar tareas que ya han sido completadas
+                const completedTaskIds = this.data.logs.map(log => log.taskId);
+                let availableTasks = this.data.tasks.filter(t => !completedTaskIds.includes(t.id));
+
+                // Aplicar filtro "Mis Tareas"
+                if (showOnlyMyTasks && this.currentUserEmployeeId) {
+                    availableTasks = availableTasks.filter(t => t.employeeId === this.currentUserEmployeeId);
+                }
+
+                let results = availableTasks;
+
+                if (query.length > 0) {
+                    results = availableTasks.filter(t => 
+                        t.code.toLowerCase().includes(query) || t.title.toLowerCase().includes(query)
+                    );
+                }
+
+                if (results.length === 0) {
+                    container.innerHTML = `<p class="text-center text-slate-500 py-4">
+                        ${availableTasks.length === 0 ? (showOnlyMyTasks ? 'No tienes tareas asignadas.' : 'Todas las tareas han sido completadas.') : 'No se encontraron tareas con ese criterio.'}
+                    </p>`;
+                    this.activeSearchId = null;
+                    return;
+                }
+
+                container.innerHTML = results.map(t => {
+                    // Calcular antigüedad en días (Si no tiene fecha previa asume que es nuevo)
+                    const createdDate = t.createdAt ? new Date(t.createdAt).getTime() : Date.now();
+                    const daysOld = Math.floor((Date.now() - createdDate) / (1000 * 60 * 60 * 24));
+
+                    // Buscar el nombre del área
+                    const area = this.data.areas.find(a => a.id === t.areaId) || { name: 'Sin área' };
+                    
+                    // Buscar el nombre del empleado asignado
+                    const employee = this.data.employees.find(e => e.id === t.employeeId) || { name: 'Sin asignar' };
+                    
+                    // Configuración de la etiqueta de Prioridad
+                    let priorityLabel = 'Normal';
+                    let priorityIcon = 'ph-info';
+                    let priorityColor = 'bg-cyan-50 text-cyan-700 border-cyan-200';
+                    
+                    if(t.priority === 'alta') { priorityLabel = 'Alta Prioridad'; priorityIcon = 'ph-warning-octagon'; priorityColor = 'bg-rose-50 text-rose-700 border-rose-200'; }
+                    else if(t.priority === 'media') { priorityLabel = 'Prioridad Media'; priorityIcon = 'ph-warning-circle'; priorityColor = 'bg-amber-50 text-amber-700 border-amber-200'; }
+                    else if(t.priority === 'baja') { priorityLabel = 'Prioridad Baja'; }
+
+                    let indicatorColor = 'bg-emerald-500';
+                    let indicatorBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    let pulse = '';
+                    
+                    if (daysOld === 2) {
+                        indicatorColor = 'bg-amber-500';
+                        indicatorBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                    } else if (daysOld >= 3) {
+                        indicatorColor = 'bg-red-500';
+                        indicatorBg = 'bg-red-50 text-red-700 border-red-200';
+                        pulse = 'animate-pulse';
+                    }
+
+                    return `
+                    <div class="bg-white rounded-xl shadow-sm border ${daysOld >= 3 ? 'border-red-200' : 'border-slate-100'} overflow-hidden transition-all">
+                        <div class="p-4 flex justify-between items-center cursor-pointer" onclick="app.toggleLogForm('${t.id}')">
+                            <div>
+                                <div class="flex items-center flex-wrap gap-2 mb-1">
+                                    <span class="text-xs font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded">ID: ${t.code}</span>
+                                    <span class="text-[10px] font-bold px-2 py-1 rounded-full border flex items-center gap-1.5 ${indicatorBg}" title="Tiempo en lista">
+                                        <div class="w-2 h-2 rounded-full ${indicatorColor} ${pulse}"></div>
+                                        ${daysOld} ${daysOld === 1 ? 'DÍA' : 'DÍAS'}
+                                    </span>
+                                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Área asignada">
+                                        <i class="ph-fill ph-map-pin"></i> ${area.name}
+                                    </span>
+                                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Asignado a">
+                                        <i class="ph-fill ph-user"></i> ${employee.name}
+                                    </span>
+                                    ${t.priority ? `
+                                    <span class="${priorityColor} text-[10px] px-2 py-1 rounded-full border font-semibold uppercase flex items-center gap-1" title="Prioridad">
+                                        <i class="ph-fill ${priorityIcon}"></i> ${priorityLabel}
+                                    </span>
+                                    ` : ''}
+                                </div>
+                                <h3 class="font-bold text-slate-800 text-lg">${t.title}</h3>${t.description ? `<div class="text-sm text-slate-600 mt-2 rich-text">${t.description}</div>` : ''}
+                            </div>
+                            <i class="ph ${this.activeSearchId === t.id ? 'ph-caret-up' : 'ph-caret-down'} text-slate-400 text-xl transition-transform" id="icon-${t.id}"></i>
+                        </div>
+                        
+                        <!-- Log Form Accordion -->
+                        <div id="form-${t.id}" class="slide-down ${this.activeSearchId === t.id ? 'active' : ''} bg-slate-50 border-t border-slate-100">
+                            <form onsubmit="app.submitLog(event, '${t.id}')" class="p-4 space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Área / Proyecto</label>
+                                    <div class="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-700 text-sm font-medium flex items-center gap-2">
+                                        <i class="ph ph-map-pin"></i> ${this.data.areas.find(a => a.id === t.areaId)?.name || 'Sin área asignada'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Personal Responsable</label>
+                                    <select id="log-emp-${t.id}" required class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm">
+                                        <option value="">Seleccione el empleado...</option>
+                                        <!-- Populated via JS -->
+                                    </select>
+                                </div>
+                                ${this.generateTaskInputs(t)}
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mt-2">
+                                    <i class="ph ph-check-circle text-xl"></i> Completar Tarea
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                `}).join('');
+                
+                if(this.activeSearchId) {
+                    this.filterEmployeesForLog(this.activeSearchId);
+                }
+            },
+
+            toggleLogForm(taskId) {
+                // Collapse previous
+                if (this.activeSearchId && this.activeSearchId !== taskId) {
+                    const prevForm = document.getElementById(`form-${this.activeSearchId}`);
+                    const prevIcon = document.getElementById(`icon-${this.activeSearchId}`);
+                    if(prevForm) prevForm.classList.remove('active');
+                    if(prevIcon) { prevIcon.classList.remove('ph-caret-up'); prevIcon.classList.add('ph-caret-down'); }
+                }
+
+                const currentForm = document.getElementById(`form-${taskId}`);
+                const currentIcon = document.getElementById(`icon-${taskId}`);
+
+                if (this.activeSearchId === taskId) {
+                    // Close current
+                    currentForm.classList.remove('active');
+                    currentIcon.classList.remove('ph-caret-up');
+                    currentIcon.classList.add('ph-caret-down');
+                    this.activeSearchId = null;
+                } else {
+                    // Open new
+                    currentForm.classList.add('active');
+                    currentIcon.classList.remove('ph-caret-down');
+                    currentIcon.classList.add('ph-caret-up');
+                    this.activeSearchId = taskId;
+                    this.filterEmployeesForLog(taskId); // init dropdown
+                }
+            },
+
+            filterEmployeesForLog(taskId) {
+                const task = this.data.tasks.find(t => t.id === taskId);
+                const empSelect = document.getElementById(`log-emp-${taskId}`);
+
+                if (empSelect) {
+                    empSelect.innerHTML = `<option value="">Seleccione el empleado...</option>` +
+                        this.data.employees.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+                    
+                    // Pre-select the assigned employee
+                    if (task && task.employeeId) {
+                        empSelect.value = task.employeeId;
+                    }
+                }
+            },
+
+            submitLog(event, taskId) {
+                event.preventDefault();
+                const task = this.data.tasks.find(t => t.id === taskId);
+                const areaId = task ? task.areaId : null;
+                const empId = document.getElementById(`log-emp-${taskId}`).value;
+
+                const logEntry = {
+                    id: 'log_' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    taskId,
+                    areaId,
+                    employeeId: empId,
+                    hoursSpent: null,
+                    quantityCounted: null,
+                    checklistCounts: null
+                };
+
+                // Check if it was a checklist
+                const checklistInputs = document.querySelectorAll(`input[id^="log-checklist-item-${taskId}-"]`);
+
+                if (checklistInputs.length > 0) {
+                    const counts = [];
+                    let total = 0;
+                    checklistInputs.forEach(input => {
+                        const count = parseInt(input.value, 10) || 0;
+                        counts.push({ text: input.dataset.itemText, count: count });
+                        total += count;
+                    });
+                    logEntry.checklistCounts = counts;
+                    logEntry.quantityCounted = total;
+                } else if (task.requiresCount) {
+                    const qty = document.getElementById(`log-qty-${taskId}`).value;
+                    logEntry.quantityCounted = parseInt(qty, 10);
+                } else {
+                    const hours = document.getElementById(`log-hours-${taskId}`).value;
+                    logEntry.hoursSpent = parseFloat(hours);
+                }
+
+                this.data.logs.unshift(logEntry); // Add to beginning
+                this.saveData();
+
+                // Reset and close
+                document.getElementById('search-input').value = '';
+                this.handleSearch();
+                this.showToast('Tarea completada correctamente');
+            },
+
+            // --- Modificación de Registros ---
+            editLog(logId) {
+                this.editingLogId = logId;
+                this.renderHistory();
+            },
+
+            cancelEdit() {
+                this.editingLogId = null;
+                this.renderHistory();
+            },
+
+            filterEmployeesForEdit(logId) {
+                const areaId = document.getElementById(`edit-area-${logId}`).value;
+                const empSelect = document.getElementById(`edit-emp-${logId}`);
+                empSelect.innerHTML = `<option value="">Seleccionar Empleado...</option>` + 
+                    this.data.employees.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+            },
+
+            saveLogEdit(event, logId) {
+                event.preventDefault();
+                const log = this.data.logs.find(l => l.id === logId);
+                if (log) {
+                    log.areaId = document.getElementById(`edit-area-${logId}`).value;
+                    log.employeeId = document.getElementById(`edit-emp-${logId}`).value;
+                    const task = this.data.tasks.find(t => t.id === log.taskId);
+
+                    const checklistInputs = document.querySelectorAll(`input[id^="edit-checklist-item-${logId}-"]`);
+                    if (checklistInputs.length > 0) {
+                        const counts = [];
+                        let total = 0;
+                        checklistInputs.forEach(input => {
+                            const count = parseInt(input.value, 10) || 0;
+                            counts.push({ text: input.dataset.itemText, count: count });
+                            total += count;
+                        });
+                        log.checklistCounts = counts;
+                        log.quantityCounted = total;
+                        log.hoursSpent = null;
+                    } else if (task && task.requiresCount) {
+                        log.quantityCounted = parseInt(document.getElementById(`edit-qty-${logId}`).value, 10);
+                        log.hoursSpent = null;
+                        log.checklistCounts = null;
+                    } else {
+                        log.hoursSpent = parseFloat(document.getElementById(`edit-hours-${logId}`).value);
+                        log.quantityCounted = null;
+                        log.checklistCounts = null;
+                    }
+                    this.saveData();
+                    this.showToast('Registro modificado', 'success');
+                }
+                this.editingLogId = null;
+                this.renderHistory();
+            },
+
+            // --- Features: History ---
+            renderHistory() {
+                const container = document.getElementById('history-list');
+                if (this.data.logs.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-100">
+                            <i class="ph ph-clipboard text-4xl text-slate-300 mb-2"></i>
+                            <p class="text-slate-500">No hay registros aún.</p>
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = this.data.logs.map(log => {
+                    const taskObj = this.data.tasks.find(t => t.id === log.taskId) || { title: 'Tarea Eliminada', code: '---' };
+
+                    if (this.editingLogId === log.id) {
+                        return `
+                        <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-200">
+                            <form onsubmit="app.saveLogEdit(event, '${log.id}')" class="space-y-3">
+                                <h4 class="font-bold text-slate-800">Modificar: ${taskObj.title}</h4>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <select id="edit-area-${log.id}" class="p-2 rounded border border-slate-300 text-sm w-full outline-none bg-white" required>
+                                        <option value="">Seleccionar Área...</option>
+                                        ${this.data.areas.map(a => `<option value="${a.id}" ${a.id === log.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
+                                    </select>
+                                    <select id="edit-emp-${log.id}" class="p-2 rounded border border-slate-300 text-sm w-full outline-none bg-white" required>
+                                        <option value="">Seleccionar Empleado...</option>
+                                        ${this.data.employees.map(e => `<option value="${e.id}" ${e.id === log.employeeId ? 'selected' : ''}>${e.name}</option>`).join('')}
+                                    </select>
+                                    ${this.generateTaskInputs(taskObj, log)}
+                                </div>
+                                <div class="flex justify-end gap-2 mt-2">
+                                    <button type="button" onclick="app.cancelEdit()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
+                                    <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">Guardar</button>
+                                </div>
+                            </form>
+                        </div>`;
+                    }
+
+                    const emp = this.data.employees.find(e => e.id === log.employeeId) || { name: 'Emp. Eliminado' };
+                    const area = this.data.areas.find(a => a.id === log.areaId) || { name: 'Área Eliminada' };
+                    const date = new Date(log.timestamp).toLocaleString('es-ES', { 
+                        day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' 
+                    });
+
+                    // Calcular el semáforo histórico (tiempo que tardó en registrarse)
+                    let indicatorHtml = '';
+                    if (taskObj.id && taskObj.createdAt) {
+                        const createdDate = new Date(taskObj.createdAt).getTime();
+                        const logDate = new Date(log.timestamp).getTime();
+                        const daysOld = Math.max(0, Math.floor((logDate - createdDate) / (1000 * 60 * 60 * 24)));
+                        
+                        let indicatorColor = 'bg-emerald-500';
+                        let indicatorBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                        
+                        if (daysOld === 2) {
+                            indicatorColor = 'bg-amber-500';
+                            indicatorBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                        } else if (daysOld >= 3) {
+                            indicatorColor = 'bg-red-500';
+                            indicatorBg = 'bg-red-50 text-red-700 border-red-200';
+                        }
+                        
+                        indicatorHtml = `
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${indicatorBg}" title="Días que tardó en completarse">
+                            <div class="w-1.5 h-1.5 rounded-full ${indicatorColor}"></div>
+                            ${daysOld} ${daysOld === 1 ? 'DÍA' : 'DÍAS'}
+                        </span>`;
+                    }
+
+                    // Admin only: delete button
+                    const editBtn = `<button onclick="app.editLog('${log.id}')" class="text-blue-400 hover:text-blue-600 p-2"><i class="ph ph-pencil-simple"></i></button>`;
+                    const deleteBtn = this.isAdmin ? `<button onclick="app.deleteLog('${log.id}')" class="text-red-400 hover:text-red-600 p-2"><i class="ph ph-trash"></i></button>` : '';
+
+                    return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-slate-500">${date}</span>
+                                <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase">${area.name}</span>
+                                ${indicatorHtml}
+                            </div>
+                            <h4 class="font-bold text-slate-800 leading-tight">${taskObj.title} <span class="text-slate-400 font-normal text-sm">(#${taskObj.code})</span></h4>${taskObj.description ? `<div class="text-xs text-slate-600 mt-1 rich-text">${taskObj.description}</div>` : ''}
+                            <p class="text-sm text-slate-500 mt-1"><i class="ph ph-user text-xs"></i> ${emp.name}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${log.checklistCounts && log.checklistCounts.length > 0 ? `
+                                <div class="text-left bg-blue-50 text-blue-700 rounded-lg p-3 w-64">
+                                    <span class="block text-[10px] uppercase tracking-wider font-bold opacity-70 mb-2 border-b border-blue-200 pb-1">Checklist Completado</span>
+                                    <ul class="text-sm space-y-1 mt-2">
+                                        ${log.checklistCounts.map(item => `
+                                            <li class="flex justify-between items-center">
+                                                <span class="truncate pr-2">${item.text}</span>
+                                                <span class="font-bold bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">${item.count}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                    <div class="text-right font-bold text-base mt-2 pt-2 border-t border-blue-200">
+                                        Total: ${log.quantityCounted}
+                                    </div>
+                                </div>
+                            ` : (log.quantityCounted !== null ? `
+                                <div class="text-center bg-blue-50 text-blue-700 rounded-lg p-2 min-w-[3rem]">
+                                    <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Cantidad</span>
+                                    <span class="text-xl font-black">${log.quantityCounted}</span>
+                                </div>
+                            ` : `
+                                <div class="text-center bg-blue-50 text-blue-700 rounded-lg p-2 min-w-[3rem]">
+                                    <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Horas</span>
+                                    <span class="text-xl font-black">${log.hoursSpent}</span>
+                                </div>
+                            `)}
+                            <div class="flex flex-col gap-1 ml-1">
+                                ${editBtn}
+                                ${deleteBtn}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            deleteLog(logId) {
+                this.data.logs = this.data.logs.filter(l => l.id !== logId);
+                this.saveData();
+                this.renderHistory();
+                this.handleSearch();
+                this.showToast('Registro eliminado', 'info');
+            },
+
+            exportToCSV() {
+                if (this.data.logs.length === 0) {
+                    this.showToast('No hay datos para exportar', 'error');
+                    return;
+                }
+
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Fecha y Hora,ID Tarea,Titulo Tarea,Area/Proyecto,Responsable,Cargo,Horas Invertidas,Cantidad Contada,Detalle Conteo\n";
+
+                this.data.logs.forEach(log => {
+                    const taskObj = this.data.tasks.find(t => t.id === log.taskId) || {};
+                    const emp = this.data.employees.find(e => e.id === log.employeeId) || {};
+                    const area = this.data.areas.find(a => a.id === log.areaId) || {};
+                    const date = new Date(log.timestamp).toLocaleString();
+                    
+                    let checklistDetail = '';
+                    if (log.checklistCounts && log.checklistCounts.length > 0) {
+                        checklistDetail = log.checklistCounts.map(item => `${item.text}: ${item.count}`).join('; ');
+                    }
+                    
+                    const row = [
+                        `"${date}"`,
+                        `"${taskObj.code || ''}"`,
+                        `"${taskObj.title || ''}"`,
+                        `"${area.name || ''}"`,
+                        `"${emp.name || ''}"`,
+                        `"${emp.role || ''}"`,
+                        log.hoursSpent !== null ? log.hoursSpent : '',
+                        log.quantityCounted !== null ? log.quantityCounted : '',
+                        `"${checklistDetail}"`
+                    ].join(",");
+                    csvContent += row + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `Reporte_Tareas_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                this.showToast('Archivo CSV descargado');
+            },
+
+            // --- Features: Admin CRUD ---
+            renderAll() {
+                this.renderAdminTasks();
+                this.renderAdminAreas();
+                this.renderAdminEmployees();
+                this.renderDynamicSelects();
+                this.renderFilters();
+                if(this.currentView === 'history') this.renderHistory();
+                if(this.currentView === 'search') this.handleSearch();
+            },
+
+            renderFilters() {
+                const filterContainer = document.getElementById('filter-container');
+                if (!filterContainer) return;
+
+                if (this.currentUserEmployeeId) {
+                    filterContainer.classList.remove('hidden');
+                    filterContainer.classList.add('flex');
+                } else {
+                    filterContainer.classList.add('hidden');
+                    filterContainer.classList.remove('flex');
+                    const toggle = document.getElementById('my-tasks-toggle');
+                    if (toggle) toggle.checked = false;
+                }
+            },
+
+            filterEmployeesForNewTask() {
+                const areaId = document.getElementById('new-task-area').value;
+                const empSelect = document.getElementById('new-task-employee');
+                if (!empSelect) return;
+
+                const currentEmployee = empSelect.value;
+
+                empSelect.innerHTML = `<option value="">Asignar a Persona...</option>` + 
+                    this.data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+                
+                if (this.data.employees.some(e => e.id === currentEmployee)) {
+                    empSelect.value = currentEmployee;
+                }
+            },
+
+            renderDynamicSelects() {
+                const areaSelect = document.getElementById('new-emp-area');
+                if(areaSelect) {
+                    areaSelect.innerHTML = `<option value="">Asignar a Área...</option>` + 
+                        this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                }
+                const taskAreaSelect = document.getElementById('new-task-area');
+                if(taskAreaSelect) {
+                    taskAreaSelect.innerHTML = `<option value="">Asignar a Área/Proyecto...</option>` + 
+                        this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                }
+                this.filterEmployeesForNewTask(); // Initial population
+            },
+
+            // Tasks Admin
+            addTask(e) {
+                e.preventDefault();
+                const title = document.getElementById('new-task-title').value;
+                // Extraer el HTML de Quill. Si está vacío quitar las etiquetas sobrantes.
+                const isDescEmpty = this.quill.getText().trim().length === 0;
+                const description = isDescEmpty ? '' : this.quill.root.innerHTML;
+                const areaId = document.getElementById('new-task-area').value;
+                const employeeId = document.getElementById('new-task-employee').value;
+                const priority = document.getElementById('new-task-priority').value;
+                const requiresCount = document.getElementById('new-task-requires-count').value === 'true';
+                
+                // Generar un ID aleatorio único (ej. T-4821)
+                let code = 'T-' + Math.floor(1000 + Math.random() * 9000);
+                while (this.data.tasks.some(t => t.code === code)) {
+                    code = 'T-' + Math.floor(1000 + Math.random() * 9000);
+                }
+
+                this.data.tasks.push({ 
+                    id: 't_' + Date.now(), 
+                    code, 
+                    title,
+                    description,
+                    areaId,
+                    employeeId,
+                    priority,
+                    requiresCount,
+                    createdAt: new Date().toISOString()
+                });
+                this.saveData();
+                document.getElementById('new-task-title').value = '';
+                this.quill.setContents([]); // Vaciar editor
+                document.getElementById('new-task-employee').value = '';
+                document.getElementById('new-task-area').value = '';
+                document.getElementById('new-task-priority').value = '';
+                document.getElementById('new-task-requires-count').value = '';
+                this.renderAdminTasks();
+                this.showToast('Tarea agregada');
+            },
+
+            deleteTask(id) {
+                this.data.tasks = this.data.tasks.filter(t => t.id !== id);
+                this.saveData();
+                this.renderAdminTasks();
+                this.showToast('Tarea eliminada', 'info');
+            },
+
+            deleteOldProduct(id) {
+                this.data.products = this.data.products.filter(p => p.id !== id);
+                this.saveData();
+                this.renderAdminTasks();
+                this.showToast('Artículo antiguo eliminado', 'info');
+            },
+
+            deleteAllOldProducts() {
+                this.data.products = [];
+                this.saveData();
+                this.renderAdminTasks();
+                this.showToast('Todos los artículos antiguos han sido eliminados', 'success');
+            },
+
+            renderAdminTasks() {
+                const container = document.getElementById('admin-task-list');
+                
+                let tasksHtml = '';
+                if (this.data.tasks.length === 0) {
+                    tasksHtml = '<p class="text-sm text-slate-500 text-center py-4">No hay tareas registradas.</p>';
+                } else {
+                    tasksHtml = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Tareas Registradas</h3>` + this.data.tasks.map(t => {
+                    const employee = this.data.employees.find(e => e.id === t.employeeId) || { name: 'Sin asignar' };
+                    const area = this.data.areas.find(a => a.id === t.areaId) || { name: 'Sin área' };
+                    let priorityLabel = 'Normal';
+                    if(t.priority === 'alta') priorityLabel = 'Alta';
+                    else if(t.priority === 'media') priorityLabel = 'Media';
+                    else if(t.priority === 'baja') priorityLabel = 'Baja';
+
+                    return `
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">${t.code}</span>
+                            <p class="font-medium text-slate-700 mt-1">${t.title}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs text-slate-400"><i class="ph ph-map-pin"></i> ${area.name}</span>
+                                <span class="text-xs text-slate-500"><i class="ph ph-user"></i> ${employee.name}</span>
+                                ${t.priority ? `<span class="text-[10px] font-semibold uppercase ${t.priority === 'alta' ? 'text-rose-600' : (t.priority === 'media' ? 'text-amber-600' : 'text-cyan-600')}"><i class="ph ph-flag"></i> Prioridad ${priorityLabel}</span>` : ''}
+                            </div>
+                        </div>
+                        <button onclick="app.deleteTask('${t.id}')" class="text-slate-400 hover:text-red-500 p-2"><i class="ph ph-trash"></i></button>
+                    </div>
+                `}).join('');
+                }
+
+                let oldProductsHtml = '';
+                if (this.data.products && this.data.products.length > 0) {
+                    oldProductsHtml = `
+                    <div class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div class="flex items-start gap-3">
+                            <i class="ph-fill ph-warning text-amber-500 text-2xl mt-1"></i>
+                            <div>
+                                <h3 class="font-semibold text-amber-800">Artículos Antiguos Detectados</h3>
+                                <p class="text-sm text-amber-700 mb-4">Hemos encontrado "productos" de una versión anterior. Puedes eliminarlos para limpiar la base de datos.</p>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            ${this.data.products.map(p => `
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">${p.code || 'S/C'}</span>
+                                        <p class="font-medium text-slate-700 mt-1">${p.name || 'Sin Nombre'}</p>
+                                    </div>
+                                    <button onclick="app.deleteOldProduct('${p.id}')" class="text-slate-400 hover:text-red-500 p-2" title="Eliminar este artículo"><i class="ph ph-trash"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="app.deleteAllOldProducts()" class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"><i class="ph ph-trash"></i> Eliminar Todos los Artículos Antiguos</button>
+                    </div>`;
+                }
+
+                container.innerHTML = tasksHtml + oldProductsHtml;
+            },
+
+            // Areas Admin
+            addArea(e) {
+                e.preventDefault();
+                const name = document.getElementById('new-area-name').value;
+                this.data.areas.push({ id: 'a_' + Date.now(), name });
+                this.saveData();
+                document.getElementById('new-area-name').value = '';
+                this.renderAdminAreas();
+                this.showToast('Área creada');
+            },
+            
+            deleteArea(id) {
+                this.data.areas = this.data.areas.filter(a => a.id !== id);
+                // Also remove employees in this area to prevent orphans
+                this.data.employees = this.data.employees.filter(e => e.areaId !== id);
+                this.saveData();
+                this.renderAll();
+                this.showToast('Área y empleados vinculados eliminados', 'info');
+            },
+
+            renderAdminAreas() {
+                const container = document.getElementById('admin-area-list');
+                
+                if (this.data.areas.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">No hay áreas registradas.</p>';
+                    return;
+                }
+                container.innerHTML = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Áreas Registradas</h3>` + this.data.areas.map(a => `
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                        <p class="font-medium text-slate-700"><i class="ph ph-map-pin mr-2 text-slate-400"></i>${a.name}</p>
+                        <button onclick="app.deleteArea('${a.id}')" class="text-slate-400 hover:text-red-500 p-2"><i class="ph ph-trash"></i></button>
+                    </div>
+                `).join('');
+            },
+
+            // Employees Admin
+            addEmployee(e) {
+                e.preventDefault();
+                const name = document.getElementById('new-emp-name').value;
+                const email = document.getElementById('new-emp-email').value;
+                const role = document.getElementById('new-emp-role').value;
+                const areaId = document.getElementById('new-emp-area').value;
+
+                if (this.data.employees.some(emp => emp.email === email)) {
+                    this.showToast('Este correo ya está registrado.', 'error');
+                    return;
+                }
+
+                this.data.employees.push({ id: 'e_' + Date.now(), name, email, role, areaId });
+                this.saveData();
+                
+                document.getElementById('new-emp-name').value = '';
+                document.getElementById('new-emp-email').value = '';
+                document.getElementById('new-emp-role').value = '';
+                document.getElementById('new-emp-area').value = '';
+                this.renderAdminEmployees();
+                this.showToast('Empleado registrado');
+            },
+
+            deleteEmployee(id) {
+                // Si el empleado a borrar es el usuario actual, limpiar el ID
+                if (id === this.currentUserEmployeeId) this.currentUserEmployeeId = null;
+                this.data.employees = this.data.employees.filter(e => e.id !== id);
+                this.saveData();
+                this.renderAdminEmployees();
+                this.showToast('Empleado eliminado', 'info');
+            },
+
+            renderAdminEmployees() {
+                const container = document.getElementById('admin-employee-list');
+                
+                if (this.data.employees.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">No hay personal registrado.</p>';
+                    return;
+                }
+                container.innerHTML = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Personal Registrado</h3>` + this.data.employees.map(e => {
+                    const area = this.data.areas.find(a => a.id === e.areaId) || {name: 'Sin área'};
+                    return `
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-slate-700">${e.name} ${e.id === this.currentUserEmployeeId ? '<span class="text-xs text-blue-500">(Tú)</span>' : ''}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">${e.role}</span>
+                                <span class="text-xs text-slate-400" title="${e.email}"><i class="ph ph-envelope-simple"></i> Correo</span>
+                                <span class="text-xs text-slate-400"><i class="ph ph-map-pin"></i> ${area.name}</span>
+                            </div>
+                        </div>
+                        <button onclick="app.deleteEmployee('${e.id}')" class="text-slate-400 hover:text-red-500 p-2"><i class="ph ph-trash"></i></button>
+                    </div>`;
+                }).join('');
+            }
+        };
+
+        // Boot
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+    </script>
+</body>
+</html>
