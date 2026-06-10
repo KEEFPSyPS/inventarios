@@ -108,6 +108,9 @@
                         <input type="text" id="search-input" oninput="app.handleSearch()" placeholder="Ingrese ID (ej. T-01) o título..." 
                                class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
                     </div>
+                    <button onclick="app.loadData(true)" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Actualizar Lista">
+                        <i class="ph ph-arrows-clockwise text-2xl"></i>
+                    </button>
                     <button onclick="app.toggleScanner()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Escanear Ticket">
                         <i class="ph ph-barcode text-2xl"></i>
                     </button>
@@ -188,7 +191,7 @@
                         </select>
                         <select id="new-task-requires-count" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                             <option value="">Tipo de registro...</option>
-                            <option value="false">Por Horas</option>
+                            <option value="false">Sin Conteo</option>
                             <option value="true">Por Conteo Numérico</option>
                         </select>
                     </div>
@@ -298,7 +301,6 @@
             isScanning: false,
             html5QrcodeScanner: null,
             quill: null, // Instancia del editor de texto
-            unsubscribe: null, // Suscripción de Firebase
 
             // Initialize App
             init() {
@@ -312,10 +314,6 @@
                         document.getElementById('btn-logout').classList.add('hidden');
                         document.getElementById('bottom-nav').classList.add('hidden');
                         this.data = { tasks: [], areas: [], employees: [], logs: [] };
-                        if (this.unsubscribe) {
-                            this.unsubscribe();
-                            this.unsubscribe = null;
-                        }
                         this.switchView('login');
                     }
                 });
@@ -345,60 +343,57 @@
             },
 
             // --- Data Management (Firebase Firestore) ---
-            loadData() {
+            async loadData(showFeedback = false) {
                 try {
-                    if (this.unsubscribe) {
-                        this.unsubscribe();
+                    const docSnap = await db.collection('inventario').doc('datos').get();
+                    if (docSnap.exists) {
+                        const dbData = docSnap.data();
+                        // Asegurar que las listas existan para evitar errores con estructuras antiguas
+                        this.data = {
+                            tasks: dbData.tasks || [],
+                            products: dbData.products || [],
+                            areas: dbData.areas || [],
+                            employees: dbData.employees || [],
+                            logs: dbData.logs || []
+                        };
+                    } else {
+                        // Seed initial dummy data as requested
+                        this.data.areas = [
+                            { id: 'a1', name: 'Desarrollo de Software' },
+                            { id: 'a2', name: 'Soporte Técnico' }
+                        ];
+                        this.data.employees = [
+                            { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
+                            { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
+                        ];
+                        const now = Date.now();
+                        const dayMs = 24 * 60 * 60 * 1000;
+                        this.data.tasks = [
+                            { id: 't1', code: 'T-001', title: 'Actualizar servidor central', description: 'Realizar parche de seguridad y reiniciar.', areaId: 'a1', employeeId: 'e1', priority: 'baja', requiresCount: false, createdAt: new Date(now - (1 * dayMs)).toISOString() },
+                            { id: 't2', code: 'T-002', title: 'Revisión de red en piso 2', description: 'Verificar 25 puntos de red y etiquetar.', areaId: 'a2', employeeId: 'e2', priority: 'alta', requiresCount: true, createdAt: new Date(now - (2 * dayMs)).toISOString() },
+                            { id: 't3', code: 'T-003', title: 'Migración de base de datos', description: 'Pasar la base de datos de clientes al nuevo cluster.', areaId: 'a1', employeeId: 'e1', priority: 'media', requiresCount: false, createdAt: new Date(now - (3 * dayMs)).toISOString() }
+                        ];
+                        this.saveData();
                     }
-                    this.unsubscribe = db.collection('inventario').doc('datos').onSnapshot(docSnap => {
-                        if (docSnap.exists) {
-                            const dbData = docSnap.data();
-                            // Asegurar que las listas existan para evitar errores con estructuras antiguas
-                            this.data = {
-                                tasks: dbData.tasks || [],
-                                products: dbData.products || [],
-                                areas: dbData.areas || [],
-                                employees: dbData.employees || [],
-                                logs: dbData.logs || []
-                            };
-                        } else {
-                            // Seed initial dummy data as requested
-                            this.data.areas = [
-                                { id: 'a1', name: 'Desarrollo de Software' },
-                                { id: 'a2', name: 'Soporte Técnico' }
-                            ];
-                            this.data.employees = [
-                                { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
-                                { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
-                            ];
-                            const now = Date.now();
-                            const dayMs = 24 * 60 * 60 * 1000;
-                            this.data.tasks = [
-                                { id: 't1', code: 'T-001', title: 'Actualizar servidor central', description: 'Realizar parche de seguridad y reiniciar.', areaId: 'a1', employeeId: 'e1', priority: 'baja', requiresCount: false, createdAt: new Date(now - (1 * dayMs)).toISOString() },
-                                { id: 't2', code: 'T-002', title: 'Revisión de red en piso 2', description: 'Verificar 25 puntos de red y etiquetar.', areaId: 'a2', employeeId: 'e2', priority: 'alta', requiresCount: true, createdAt: new Date(now - (2 * dayMs)).toISOString() },
-                                { id: 't3', code: 'T-003', title: 'Migración de base de datos', description: 'Pasar la base de datos de clientes al nuevo cluster.', areaId: 'a1', employeeId: 'e1', priority: 'media', requiresCount: false, createdAt: new Date(now - (3 * dayMs)).toISOString() }
-                            ];
-                            this.saveData();
-                        }
 
-                        // Find current user's employee record
-                        const currentUser = auth.currentUser;
-                        this.currentUserEmployeeId = null; // Reset
-                        if (currentUser && this.data.employees) {
-                            const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
-                            if (myEmployeeRecord) {
-                                this.currentUserEmployeeId = myEmployeeRecord.id;
-                            }
+                    // Find current user's employee record
+                    const currentUser = auth.currentUser;
+                    this.currentUserEmployeeId = null; // Reset
+                    if (currentUser && this.data.employees) {
+                        const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
+                        if (myEmployeeRecord) {
+                            this.currentUserEmployeeId = myEmployeeRecord.id;
                         }
-                        
-                        this.setupDOM();
-                        this.renderAll();
-                    }, error => {
-                        console.error("Error escuchando de Firebase", error);
-                        this.showToast('Error conectando a la base de datos', 'error');
-                    });
+                    }
+                    
+                    this.setupDOM();
+                    this.renderAll();
+                    
+                    if (showFeedback) {
+                        this.showToast('Lista sincronizada', 'success');
+                    }
                 } catch (error) {
-                    console.error("Error al configurar listener de Firebase", error);
+                    console.error("Error cargando de Firebase", error);
                     this.showToast('Error conectando a la base de datos', 'error');
                 }
             },
@@ -564,6 +559,10 @@
             generateTaskInputs(task, log = null) {
                 const prefix = log ? 'edit' : 'log';
                 const id = log ? log.id : task.id;
+                
+                // Textarea para comentarios (Aplica para todos los tipos de tareas)
+                const commentValue = log && log.comments !== undefined ? log.comments : '';
+                const commentHtml = `<div class="mt-3"><label class="block text-xs font-semibold text-slate-500 mb-1">Comentarios / Observaciones</label><textarea id="${prefix}-comments-${id}" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm" rows="2" placeholder="Detalles u observaciones de la acción realizada...">${commentValue}</textarea></div>`;
 
                 // Case 1: Checklist
                 const isChecklist = task.requiresCount && task.description && task.description.includes('<li>');
@@ -590,18 +589,17 @@
                         }
                     });
                     checklistHtml += '</div>';
-                    return checklistHtml;
+                    return checklistHtml + commentHtml;
                 }
 
                 // Case 2: Simple Count
                 if (task.requiresCount) {
                     const value = log && log.quantityCounted !== null ? log.quantityCounted : '';
-                    return `<div><label class="block text-xs font-semibold text-slate-500 mb-1">Cantidad Contada</label><input type="number" id="${prefix}-qty-${id}" value="${value}" required min="0" placeholder="Ej. 25" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>`;
+                    return `<div><label class="block text-xs font-semibold text-slate-500 mb-1">Cantidad Contada</label><input type="number" id="${prefix}-qty-${id}" value="${value}" required min="0" placeholder="Ej. 25" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>` + commentHtml;
                 }
 
-                // Case 3: Hours
-                const value = log && log.hoursSpent !== null ? log.hoursSpent : '';
-                return `<div><label class="block text-xs font-semibold text-slate-500 mb-1">Horas Invertidas (Aprox)</label><input type="number" id="${prefix}-hours-${id}" value="${value}" required min="0" step="0.5" placeholder="Ej. 2.5" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>`;
+                // Case 3: Sin Conteo (Tarea simple)
+                return commentHtml;
             },
 
             // --- Features: Search & Log ---
@@ -616,7 +614,7 @@
                 if (this.activeSearchId) {
                     const activeForm = document.querySelector(`#form-${this.activeSearchId} form`);
                     if (activeForm) {
-                        const inputs = activeForm.querySelectorAll('input, select');
+                        const inputs = activeForm.querySelectorAll('input, select, textarea');
                         inputs.forEach(inp => { if (inp.id) activeFormState[inp.id] = inp.value; });
                     }
                 }
@@ -801,6 +799,7 @@
                 const task = this.data.tasks.find(t => t.id === taskId);
                 const areaId = task ? task.areaId : null;
                 const empId = document.getElementById(`log-emp-${taskId}`).value;
+                const comments = document.getElementById(`log-comments-${taskId}`).value;
 
                 const logEntry = {
                     id: 'log_' + Date.now(),
@@ -810,7 +809,8 @@
                     employeeId: empId,
                     hoursSpent: null,
                     quantityCounted: null,
-                    checklistCounts: null
+                    checklistCounts: null,
+                    comments: comments
                 };
 
                 // Check if it was a checklist
@@ -830,8 +830,7 @@
                     const qty = document.getElementById(`log-qty-${taskId}`).value;
                     logEntry.quantityCounted = parseInt(qty, 10);
                 } else {
-                    const hours = document.getElementById(`log-hours-${taskId}`).value;
-                    logEntry.hoursSpent = parseFloat(hours);
+                    // Tarea tipo 'Sin Conteo' (ya no procesamos horas)
                 }
 
                 this.data.logs.unshift(logEntry); // Add to beginning
@@ -867,6 +866,7 @@
                 if (log) {
                     log.areaId = document.getElementById(`edit-area-${logId}`).value;
                     log.employeeId = document.getElementById(`edit-emp-${logId}`).value;
+                    log.comments = document.getElementById(`edit-comments-${logId}`).value;
                     const task = this.data.tasks.find(t => t.id === log.taskId);
 
                     const checklistInputs = document.querySelectorAll(`input[id^="edit-checklist-item-${logId}-"]`);
@@ -886,7 +886,6 @@
                         log.hoursSpent = null;
                         log.checklistCounts = null;
                     } else {
-                        log.hoursSpent = parseFloat(document.getElementById(`edit-hours-${logId}`).value);
                         log.quantityCounted = null;
                         log.checklistCounts = null;
                     }
@@ -906,7 +905,7 @@
                 if (this.editingLogId) {
                     const editArea = document.getElementById(`edit-area-${this.editingLogId}`);
                     if (editArea) {
-                        const inputs = editArea.closest('form').querySelectorAll('input, select');
+                        const inputs = editArea.closest('form').querySelectorAll('input, select, textarea');
                         inputs.forEach(inp => { if (inp.id) activeEditState[inp.id] = inp.value; });
                     }
                 }
@@ -978,13 +977,15 @@
                         </span>`;
                     }
 
+                    const commentDisplay = log.comments ? `<div class="mt-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-sm text-slate-600"><span class="font-bold text-slate-700 text-xs block mb-0.5">Comentarios / Observaciones:</span>${log.comments}</div>` : '';
+
                     // Admin only: delete button
                     const editBtn = `<button onclick="app.editLog('${log.id}')" class="text-blue-400 hover:text-blue-600 p-2"><i class="ph ph-pencil-simple"></i></button>`;
                     const deleteBtn = this.isAdmin ? `<button onclick="app.deleteLog('${log.id}')" class="text-red-400 hover:text-red-600 p-2"><i class="ph ph-trash"></i></button>` : '';
 
                     return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                        <div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between gap-4">
+                        <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="text-xs font-bold text-slate-500">${date}</span>
                                 <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase">${area.name}</span>
@@ -992,6 +993,7 @@
                             </div>
                             <h4 class="font-bold text-slate-800 leading-tight">${taskObj.title} <span class="text-slate-400 font-normal text-sm">(#${taskObj.code})</span></h4>${taskObj.description ? `<div class="text-xs text-slate-600 mt-1 rich-text">${taskObj.description}</div>` : ''}
                             <p class="text-sm text-slate-500 mt-1"><i class="ph ph-user text-xs"></i> ${emp.name}</p>
+                            ${commentDisplay}
                         </div>
                         <div class="flex items-center gap-2">
                             ${log.checklistCounts && log.checklistCounts.length > 0 ? `
@@ -1014,12 +1016,17 @@
                                     <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Cantidad</span>
                                     <span class="text-xl font-black">${log.quantityCounted}</span>
                                 </div>
-                            ` : `
+                            ` : (log.hoursSpent !== null && log.hoursSpent !== undefined ? `
                                 <div class="text-center bg-blue-50 text-blue-700 rounded-lg p-2 min-w-[3rem]">
                                     <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Horas</span>
                                     <span class="text-xl font-black">${log.hoursSpent}</span>
                                 </div>
-                            `)}
+                            ` : `
+                                <div class="text-center bg-emerald-50 text-emerald-600 rounded-lg p-2 min-w-[4rem] flex flex-col items-center justify-center">
+                                    <span class="block text-[10px] uppercase tracking-wider font-bold opacity-70 mb-0.5">Listo</span>
+                                    <i class="ph-fill ph-check-circle text-2xl"></i>
+                                </div>
+                            `))}
                             <div class="flex flex-col gap-1 ml-1">
                                 ${editBtn}
                                 ${deleteBtn}
@@ -1052,7 +1059,7 @@
                 }
 
                 let csvContent = "data:text/csv;charset=utf-8,";
-                csvContent += "Fecha y Hora,ID Tarea,Titulo Tarea,Area/Proyecto,Responsable,Cargo,Horas Invertidas,Cantidad Contada,Detalle Conteo\n";
+                csvContent += "Fecha y Hora,ID Tarea,Titulo Tarea,Area/Proyecto,Responsable,Cargo,Horas Invertidas,Cantidad Contada,Detalle Conteo,Comentarios\n";
 
                 this.data.logs.forEach(log => {
                     const taskObj = this.data.tasks.find(t => t.id === log.taskId) || {};
@@ -1074,7 +1081,8 @@
                         `"${emp.role || ''}"`,
                         log.hoursSpent !== null ? log.hoursSpent : '',
                         log.quantityCounted !== null ? log.quantityCounted : '',
-                        `"${checklistDetail}"`
+                        `"${checklistDetail}"`,
+                        `"${(log.comments || '').replace(/"/g, '""')}"`
                     ].join(",");
                     csvContent += row + "\r\n";
                 });

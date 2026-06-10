@@ -47,14 +47,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   
-  let fetchRequest = event.request;
-  // Evitar agresivamente que el navegador devuelva el HTML viejo de su memoria interna
-  if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
-    fetchRequest = new Request(event.request.url, { cache: 'no-store' });
-  }
-
   event.respondWith(
-    fetch(fetchRequest).then(response => {
+    fetch(event.request).then(response => {
       const resClone = response.clone();
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
       return response;
