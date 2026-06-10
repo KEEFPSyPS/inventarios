@@ -275,6 +275,12 @@
 };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        
+        // Habilitar persistencia offline de Firestore
+        db.enablePersistence().catch(err => {
+            console.log("Persistencia offline no disponible:", err.code);
+        });
+
         const auth = firebase.auth();
         const messaging = firebase.messaging();
 
@@ -727,7 +733,10 @@
                                 </div>
                                 <h3 class="font-bold text-slate-800 text-lg">${t.title}</h3>${t.description ? `<div class="text-sm text-slate-600 mt-2 rich-text">${t.description}</div>` : ''}
                             </div>
-                            <i class="ph ${this.activeSearchId === t.id ? 'ph-caret-up' : 'ph-caret-down'} text-slate-400 text-xl transition-transform" id="icon-${t.id}"></i>
+                            <div class="flex items-center gap-2">
+                                <button onclick="event.stopPropagation(); app.deleteTask('${t.id}')" class="text-red-400 hover:text-red-600 p-2 transition-colors" title="Eliminar Tarea"><i class="ph ph-trash text-xl"></i></button>
+                                <i class="ph ${this.activeSearchId === t.id ? 'ph-caret-up' : 'ph-caret-down'} text-slate-400 text-xl transition-transform" id="icon-${t.id}"></i>
+                            </div>
                         </div>
                         
                         <!-- Log Form Accordion -->
@@ -1173,9 +1182,11 @@
             },
 
             deleteTask(id) {
+                if (!confirm('¿Estás seguro de que deseas eliminar esta tarea de forma permanente?')) return;
                 this.data.tasks = this.data.tasks.filter(t => t.id !== id);
                 this.saveData();
                 this.renderAdminTasks();
+                if (this.currentView === 'search') this.handleSearch();
                 this.showToast('Tarea eliminada', 'info');
             },
 
