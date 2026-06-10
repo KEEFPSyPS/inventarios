@@ -41,7 +41,7 @@ exports.sendNewTaskNotification = functions.firestore
             notification: {
               title: "Nueva Tarea Asignada",
               body: `Se te ha asignado la tarea: ${task.title}`,
-              icon: "/img/hapa_512.png",
+              icon: "img/hapa_512.png",
             },
           };
 

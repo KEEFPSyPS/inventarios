@@ -5,9 +5,9 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-comp
 // --- Cache Logic ---
 const CACHE_NAME = 'gestor-tareas-hepa-v2'; // Updated version
 const urlsToCache = [
-  '/',
-  'index.html',
-  'manifest.json',
+  './',
+  './index.html',
+  './manifest.json',
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/@phosphor-icons/web',
   'https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js',
@@ -17,8 +17,8 @@ const urlsToCache = [
   'https://unpkg.com/html5-qrcode',
   'https://cdn.quilljs.com/1.3.6/quill.snow.css',
   'https://cdn.quilljs.com/1.3.6/quill.min.js',
-  'img/hapa_192.png',
-  'img/hapa_512.png'
+  './img/hapa_192.png',
+  './img/hapa_512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -58,7 +58,7 @@ messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: payload.notification.icon || '/img/hapa_192.png'
+    icon: payload.notification.icon || './img/hapa_192.png'
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
