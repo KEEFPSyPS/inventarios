@@ -159,6 +159,7 @@
                 <button onclick="app.switchAdminTab('tasks')" id="tab-tasks" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-blue-700">Tareas</button>
                 <button onclick="app.switchAdminTab('areas')" id="tab-areas" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Áreas</button>
                 <button onclick="app.switchAdminTab('employees')" id="tab-employees" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Personal</button>
+                <button onclick="app.switchAdminTab('system')" id="tab-system" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Sistema</button>
             </div>
 
             <!-- Admin Content: Tasks -->
@@ -227,6 +228,17 @@
                 </form>
                 <div id="admin-employee-list" class="space-y-2 mt-4"></div>
             </div>
+
+            <!-- Admin Content: System -->
+            <div id="admin-system" class="space-y-4 hidden">
+                <div class="bg-red-50 p-5 rounded-xl shadow-sm border border-red-200 flex flex-col gap-3">
+                    <h3 class="font-bold text-red-700 mb-1"><i class="ph-fill ph-warning"></i> Solución de Problemas</h3>
+                    <p class="text-sm text-red-600 mb-2">Si las tareas no se actualizan en tiempo real para este dispositivo, utiliza esta herramienta para destruir la caché forzosamente y descargar la última versión limpia.</p>
+                    <button onclick="app.hardReset()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md">
+                        <i class="ph ph-arrows-clockwise text-xl"></i> Forzar Actualización Completa
+                    </button>
+                </div>
+            </div>
         </section>
 
     </main>
@@ -286,6 +298,7 @@
             isScanning: false,
             html5QrcodeScanner: null,
             quill: null, // Instancia del editor de texto
+            unsubscribe: null, // Suscripción de Firebase
 
             // Initialize App
             init() {
@@ -299,6 +312,10 @@
                         document.getElementById('btn-logout').classList.add('hidden');
                         document.getElementById('bottom-nav').classList.add('hidden');
                         this.data = { tasks: [], areas: [], employees: [], logs: [] };
+                        if (this.unsubscribe) {
+                            this.unsubscribe();
+                            this.unsubscribe = null;
+                        }
                         this.switchView('login');
                     }
                 });
@@ -328,61 +345,67 @@
             },
 
             // --- Data Management (Firebase Firestore) ---
-            async loadData() {
+            loadData() {
                 try {
-                    const docSnap = await db.collection('inventario').doc('datos').get();
-                    if (docSnap.exists) {
-                        const dbData = docSnap.data();
-                        // Asegurar que las listas existan para evitar errores con estructuras antiguas
-                        this.data = {
-                            tasks: dbData.tasks || [],
-                            products: dbData.products || [],
-                            areas: dbData.areas || [],
-                            employees: dbData.employees || [],
-                            logs: dbData.logs || []
-                        };
-                    } else {
-                        // Seed initial dummy data as requested
-                        this.data.areas = [
-                            { id: 'a1', name: 'Desarrollo de Software' },
-                            { id: 'a2', name: 'Soporte Técnico' }
-                        ];
-                        this.data.employees = [
-                            { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
-                            { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
-                        ];
-                        const now = Date.now();
-                        const dayMs = 24 * 60 * 60 * 1000;
-                        this.data.tasks = [
-                            { id: 't1', code: 'T-001', title: 'Actualizar servidor central', description: 'Realizar parche de seguridad y reiniciar.', areaId: 'a1', employeeId: 'e1', priority: 'baja', requiresCount: false, createdAt: new Date(now - (1 * dayMs)).toISOString() },
-                            { id: 't2', code: 'T-002', title: 'Revisión de red en piso 2', description: 'Verificar 25 puntos de red y etiquetar.', areaId: 'a2', employeeId: 'e2', priority: 'alta', requiresCount: true, createdAt: new Date(now - (2 * dayMs)).toISOString() },
-                            { id: 't3', code: 'T-003', title: 'Migración de base de datos', description: 'Pasar la base de datos de clientes al nuevo cluster.', areaId: 'a1', employeeId: 'e1', priority: 'media', requiresCount: false, createdAt: new Date(now - (3 * dayMs)).toISOString() }
-                        ];
-                        this.saveData();
+                    if (this.unsubscribe) {
+                        this.unsubscribe();
                     }
-
-                    // Find current user's employee record
-                    const currentUser = auth.currentUser;
-                    this.currentUserEmployeeId = null; // Reset
-                    if (currentUser && this.data.employees) {
-                        const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
-                        if (myEmployeeRecord) {
-                            this.currentUserEmployeeId = myEmployeeRecord.id;
+                    this.unsubscribe = db.collection('inventario').doc('datos').onSnapshot(docSnap => {
+                        if (docSnap.exists) {
+                            const dbData = docSnap.data();
+                            // Asegurar que las listas existan para evitar errores con estructuras antiguas
+                            this.data = {
+                                tasks: dbData.tasks || [],
+                                products: dbData.products || [],
+                                areas: dbData.areas || [],
+                                employees: dbData.employees || [],
+                                logs: dbData.logs || []
+                            };
+                        } else {
+                            // Seed initial dummy data as requested
+                            this.data.areas = [
+                                { id: 'a1', name: 'Desarrollo de Software' },
+                                { id: 'a2', name: 'Soporte Técnico' }
+                            ];
+                            this.data.employees = [
+                                { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
+                                { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
+                            ];
+                            const now = Date.now();
+                            const dayMs = 24 * 60 * 60 * 1000;
+                            this.data.tasks = [
+                                { id: 't1', code: 'T-001', title: 'Actualizar servidor central', description: 'Realizar parche de seguridad y reiniciar.', areaId: 'a1', employeeId: 'e1', priority: 'baja', requiresCount: false, createdAt: new Date(now - (1 * dayMs)).toISOString() },
+                                { id: 't2', code: 'T-002', title: 'Revisión de red en piso 2', description: 'Verificar 25 puntos de red y etiquetar.', areaId: 'a2', employeeId: 'e2', priority: 'alta', requiresCount: true, createdAt: new Date(now - (2 * dayMs)).toISOString() },
+                                { id: 't3', code: 'T-003', title: 'Migración de base de datos', description: 'Pasar la base de datos de clientes al nuevo cluster.', areaId: 'a1', employeeId: 'e1', priority: 'media', requiresCount: false, createdAt: new Date(now - (3 * dayMs)).toISOString() }
+                            ];
+                            this.saveData();
                         }
-                    }
+
+                        // Find current user's employee record
+                        const currentUser = auth.currentUser;
+                        this.currentUserEmployeeId = null; // Reset
+                        if (currentUser && this.data.employees) {
+                            const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
+                            if (myEmployeeRecord) {
+                                this.currentUserEmployeeId = myEmployeeRecord.id;
+                            }
+                        }
+                        
+                        this.setupDOM();
+                        this.renderAll();
+                    }, error => {
+                        console.error("Error escuchando de Firebase", error);
+                        this.showToast('Error conectando a la base de datos', 'error');
+                    });
                 } catch (error) {
-                    console.error("Error cargando de Firebase", error);
+                    console.error("Error al configurar listener de Firebase", error);
                     this.showToast('Error conectando a la base de datos', 'error');
                 }
-                
-                this.setupDOM();
-                this.renderAll();
             },
 
             async saveData() {
                 try {
                     await db.collection('inventario').doc('datos').set(this.data);
-                    this.renderDynamicSelects();
                 } catch (error) {
                     console.error("Error guardando en Firebase", error);
                     this.showToast('Error al guardar datos', 'error');
@@ -450,7 +473,7 @@
             switchAdminTab(tabId) {
                 this.currentAdminTab = tabId;
                 
-                ['tasks', 'areas', 'employees'].forEach(id => {
+                ['tasks', 'areas', 'employees', 'system'].forEach(id => {
                     document.getElementById(`admin-${id}`).classList.add('hidden');
                     const btn = document.getElementById(`tab-${id}`);
                     btn.classList.remove('bg-white', 'shadow-sm', 'text-blue-700');
@@ -467,19 +490,23 @@
                 this.renderDynamicSelects();
                 
                 // Inicializar Quill Editor
-                if (!this.quill) {
-                    this.quill = new Quill('#new-task-description', {
-                        theme: 'snow',
-                        placeholder: 'Descripción detallada de la acción...',
-                        modules: {
-                            toolbar: [
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{'list': 'ordered'}, {'list': 'bullet'}],
-                                [{'color': []}, {'background': []}],
-                                ['clean'] // Botón para quitar formato
-                            ]
-                        }
-                    });
+                try {
+                    if (!this.quill) {
+                        this.quill = new Quill('#new-task-description', {
+                            theme: 'snow',
+                            placeholder: 'Descripción detallada de la acción...',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    [{'list': 'ordered'}, {'list': 'bullet'}],
+                                    [{'color': []}, {'background': []}],
+                                    ['clean']
+                                ]
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("No se pudo iniciar editor de texto", e);
                 }
             },
 
@@ -583,6 +610,17 @@
                 const container = document.getElementById('search-results');
                 const showOnlyMyTasks = document.getElementById('my-tasks-toggle')?.checked || false;
                 
+                // Guardar estado de inputs activos en el formulario abierto
+                let activeFocusId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
+                let activeFormState = {};
+                if (this.activeSearchId) {
+                    const activeForm = document.querySelector(`#form-${this.activeSearchId} form`);
+                    if (activeForm) {
+                        const inputs = activeForm.querySelectorAll('input, select');
+                        inputs.forEach(inp => { if (inp.id) activeFormState[inp.id] = inp.value; });
+                    }
+                }
+
                 // Filtrar tareas que ya han sido completadas
                 const completedTaskIds = this.data.logs.map(log => log.taskId);
                 let availableTasks = this.data.tasks.filter(t => !completedTaskIds.includes(t.id));
@@ -598,6 +636,11 @@
                     results = availableTasks.filter(t => 
                         t.code.toLowerCase().includes(query) || t.title.toLowerCase().includes(query)
                     );
+                }
+
+                // Si la tarea abierta fue completada por otro usuario y desapareció, limpiar la selección
+                if (this.activeSearchId && !results.some(t => t.id === this.activeSearchId)) {
+                    this.activeSearchId = null;
                 }
 
                 if (results.length === 0) {
@@ -695,6 +738,18 @@
                 
                 if(this.activeSearchId) {
                     this.filterEmployeesForLog(this.activeSearchId);
+
+                    // Restaurar estado
+                    Object.keys(activeFormState).forEach(id => {
+                        const inp = document.getElementById(id);
+                        if (inp) inp.value = activeFormState[id];
+                    });
+
+                    // Restaurar el foco para no interrumpir la escritura
+                    if (activeFocusId) {
+                        const focusedInp = document.getElementById(activeFocusId);
+                        if (focusedInp) focusedInp.focus();
+                    }
                 }
             },
 
@@ -845,6 +900,17 @@
             // --- Features: History ---
             renderHistory() {
                 const container = document.getElementById('history-list');
+                
+                // Guardar estado del editor activo
+                let activeEditState = {};
+                if (this.editingLogId) {
+                    const editArea = document.getElementById(`edit-area-${this.editingLogId}`);
+                    if (editArea) {
+                        const inputs = editArea.closest('form').querySelectorAll('input, select');
+                        inputs.forEach(inp => { if (inp.id) activeEditState[inp.id] = inp.value; });
+                    }
+                }
+
                 if (this.data.logs.length === 0) {
                     container.innerHTML = `
                         <div class="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-100">
@@ -961,6 +1027,14 @@
                         </div>
                     </div>`;
                 }).join('');
+                
+                // Restaurar estado del editor
+                if (this.editingLogId) {
+                    Object.keys(activeEditState).forEach(id => {
+                        const inp = document.getElementById(id);
+                        if (inp) inp.value = activeEditState[id];
+                    });
+                }
             },
 
             deleteLog(logId) {
@@ -1059,17 +1133,13 @@
             renderDynamicSelects() {
                 const areaSelect = document.getElementById('new-emp-area');
                 if(areaSelect) {
-                    const currentVal = areaSelect.value;
                     areaSelect.innerHTML = `<option value="">Asignar a Área...</option>` + 
                         this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-                    if (currentVal) areaSelect.value = currentVal;
                 }
                 const taskAreaSelect = document.getElementById('new-task-area');
                 if(taskAreaSelect) {
-                    const currentVal = taskAreaSelect.value;
                     taskAreaSelect.innerHTML = `<option value="">Asignar a Área/Proyecto...</option>` + 
                         this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-                    if (currentVal) taskAreaSelect.value = currentVal;
                 }
                 this.filterEmployeesForNewTask(); // Initial population
             },
@@ -1288,6 +1358,29 @@
             }
         };
 
+        // Herramienta extrema de reparación de PWA
+        app.hardReset = async function() {
+            if(confirm('¿Seguro que deseas forzar la actualización? Esto limpiará la memoria temporal (no se perderán tareas) y recargará la aplicación.')) {
+                this.showToast('Limpiando memoria...', 'info');
+                try {
+                    if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(k => caches.delete(k)));
+                    }
+                    if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        for (let r of regs) {
+                            await r.unregister();
+                        }
+                    }
+                    setTimeout(() => { window.location.href = window.location.pathname + '?v=' + new Date().getTime(); }, 1000);
+                } catch(e) {
+                    console.error(e);
+                    window.location.reload(true);
+                }
+            }
+        }
+
         // Boot
         document.addEventListener('DOMContentLoaded', () => {
             app.init();
@@ -1296,10 +1389,22 @@
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./firebase-messaging-sw.js').then(registration => {
+                navigator.serviceWorker.register('./firebase-messaging-sw.js?v=5').then(registration => {
                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    
+                    // Buscar forzosamente actualizaciones del SW
+                    registration.update();
                 }, err => {
                     console.log('ServiceWorker registration failed: ', err);
+                });
+
+                // Detectar si el Service Worker tomó el control tras actualizarse y refrescar automáticamente
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
                 });
             });
         }

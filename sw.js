@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gestor-tareas-hepa-v1';
+const CACHE_NAME = 'gestor-tareas-hepa-v5';
 const urlsToCache = [
   '/',
   'index.html',
@@ -15,6 +15,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -24,12 +25,32 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
+});
+
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
+  let fetchRequest = event.request;
+  // Evitar agresivamente que el navegador devuelva el HTML viejo de su memoria interna
+  if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+    fetchRequest = new Request(event.request.url, { cache: 'no-store' });
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Si está en caché, lo devuelve. Si no, lo busca en la red.
-        return response || fetch(event.request);
-      })
+    fetch(fetchRequest).then(response => {
+      const resClone = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });

@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
 
 // --- Cache Logic ---
-const CACHE_NAME = 'gestor-tareas-hepa-v2'; // Updated version
+const CACHE_NAME = 'gestor-tareas-hepa-v5'; // Forzado absoluto v5
 const urlsToCache = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Obliga al nuevo Service Worker a instalarse de inmediato
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -31,12 +32,33 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim(); // Toma el control de las páginas abiertas inmediatamente
+});
+
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  
+  let fetchRequest = event.request;
+  // Evitar agresivamente que el navegador devuelva el HTML viejo de su memoria interna
+  if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+    fetchRequest = new Request(event.request.url, { cache: 'no-store' });
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
+    fetch(fetchRequest).then(response => {
+      const resClone = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
 
