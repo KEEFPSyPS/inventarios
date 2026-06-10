@@ -1,17 +1,8 @@
-const CACHE_NAME = 'gestor-tareas-hepa-v5';
+const CACHE_NAME = 'gestor-tareas-hepa-v7';
 const urlsToCache = [
-  '/',
-  'index.html',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/@phosphor-icons/web',
-  'https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js',
-  'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js',
-  'https://unpkg.com/html5-qrcode',
-  'https://cdn.quilljs.com/1.3.6/quill.snow.css',
-  'https://cdn.quilljs.com/1.3.6/quill.min.js',
-  'img/hapa_192.png',
-  'img/hapa_512.png'
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -39,6 +30,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  // Omitir peticiones que no sean http/https
+  if (!event.request.url.startsWith('http')) return;
+
+  // Estrategia Network-First ESTRICTA para la navegación (HTML)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request).then(response => {
