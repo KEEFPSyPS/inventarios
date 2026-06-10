@@ -1059,13 +1059,17 @@
             renderDynamicSelects() {
                 const areaSelect = document.getElementById('new-emp-area');
                 if(areaSelect) {
+                    const currentVal = areaSelect.value;
                     areaSelect.innerHTML = `<option value="">Asignar a Área...</option>` + 
                         this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                    if (currentVal) areaSelect.value = currentVal;
                 }
                 const taskAreaSelect = document.getElementById('new-task-area');
                 if(taskAreaSelect) {
+                    const currentVal = taskAreaSelect.value;
                     taskAreaSelect.innerHTML = `<option value="">Asignar a Área/Proyecto...</option>` + 
                         this.data.areas.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                    if (currentVal) taskAreaSelect.value = currentVal;
                 }
                 this.filterEmployeesForNewTask(); // Initial population
             },
