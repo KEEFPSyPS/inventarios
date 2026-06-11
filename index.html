@@ -113,11 +113,11 @@
                 </div>
                 <!-- Filtros -->
                 <div id="filter-container" class="hidden items-center justify-between gap-3 mt-4 flex-wrap">
-                    <select id="status-filter" onchange="app.handleSearch()" class="p-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-600">
-                        <option value="all">Todos los estados</option>
-                        <option value="green">🟢 Nuevos (0-1 Días)</option>
-                        <option value="yellow">🟡 Atención (2 Días)</option>
-                        <option value="red">🔴 Atrasados (3+ Días)</option>
+                    <select id="priority-filter" onchange="app.handleSearch()" class="p-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-600">
+                        <option value="all">Todas las prioridades</option>
+                        <option value="alta">🔴 Alta Prioridad</option>
+                        <option value="media">🟡 Prioridad Media</option>
+                        <option value="baja">🟢 Prioridad Baja</option>
                     </select>
                     <div id="my-tasks-wrapper" class="hidden items-center gap-3">
                         <span class="text-sm font-medium text-slate-700">Mostrar solo mis tareas</span>
@@ -600,7 +600,7 @@
                 const query = document.getElementById('search-input').value.toLowerCase().trim();
                 const container = document.getElementById('search-results');
                 const showOnlyMyTasks = document.getElementById('my-tasks-toggle')?.checked || false;
-                const statusFilter = document.getElementById('status-filter')?.value || 'all';
+                const priorityFilter = document.getElementById('priority-filter')?.value || 'all';
                 
                 // Guardar estado de inputs activos en el formulario abierto
                 let activeFocusId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
@@ -634,16 +634,9 @@
                     });
                 }
 
-                // Aplicar filtro por semáforo de tiempo
-                if (statusFilter !== 'all') {
-                    results = results.filter(t => {
-                        const createdDate = t.createdAt ? new Date(t.createdAt).getTime() : Date.now();
-                        const daysOld = Math.floor((Date.now() - createdDate) / (1000 * 60 * 60 * 24));
-                        if (statusFilter === 'green') return daysOld <= 1;
-                        if (statusFilter === 'yellow') return daysOld === 2;
-                        if (statusFilter === 'red') return daysOld >= 3;
-                        return true;
-                    });
+                // Aplicar filtro por prioridad
+                if (priorityFilter !== 'all') {
+                    results = results.filter(t => t.priority === priorityFilter);
                 }
 
                 // Ordenar: Prioridad primero (Alta > Media > Baja), luego fecha más reciente
