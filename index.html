@@ -122,9 +122,6 @@
                         <input type="text" id="search-input" oninput="app.handleSearch()" placeholder="Ingrese ID (ej. T-01) o título..." 
                                class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg transition-colors">
                     </div>
-                    <button onclick="app.loadData(true)" class="bg-slate-700 dark:bg-slate-600 hover:bg-slate-800 dark:hover:bg-slate-500 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Actualizar Lista">
-                        <i class="ph ph-arrows-clockwise text-2xl"></i>
-                    </button>
                 </div>
                 <!-- Filtros -->
                 <div id="filter-container" class="hidden items-center justify-between gap-3 mt-4 flex-wrap">
@@ -134,13 +131,6 @@
                         <option value="media">🟡 Prioridad Media</option>
                         <option value="baja">🟢 Prioridad Baja</option>
                     </select>
-                    <div id="my-tasks-wrapper" class="hidden items-center gap-3">
-                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Mostrar solo mis tareas</span>
-                        <label for="my-tasks-toggle" class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" value="" id="my-tasks-toggle" class="sr-only peer" onchange="app.handleSearch()">
-                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
                 </div>
             </div>
 
@@ -635,7 +625,6 @@
             handleSearch() {
                 const query = document.getElementById('search-input').value.toLowerCase().trim();
                 const container = document.getElementById('search-results');
-                const showOnlyMyTasks = document.getElementById('my-tasks-toggle')?.checked || false;
                 const priorityFilter = document.getElementById('priority-filter')?.value || 'all';
                 
                 // Guardar estado de inputs activos en el formulario abierto
@@ -652,11 +641,6 @@
                 // Filtrar tareas que ya han sido completadas
                 const completedTaskIds = this.data.logs.map(log => log.taskId);
                 let availableTasks = this.data.tasks.filter(t => !completedTaskIds.includes(t.id));
-
-                // Aplicar filtro "Mis Tareas"
-                if (showOnlyMyTasks && this.currentUserEmployeeId) {
-                    availableTasks = availableTasks.filter(t => t.employeeId === this.currentUserEmployeeId);
-                }
 
                 let results = availableTasks;
 
@@ -695,7 +679,7 @@
 
                 if (results.length === 0) {
                     container.innerHTML = `<p class="text-center text-slate-500 dark:text-slate-400 py-4">
-                        ${availableTasks.length === 0 ? (showOnlyMyTasks ? 'No tienes tareas asignadas.' : 'Todas las tareas han sido completadas.') : 'No se encontraron tareas con ese criterio.'}
+                        ${availableTasks.length === 0 ? 'Todas las tareas han sido completadas.' : 'No se encontraron tareas con ese criterio.'}
                     </p>`;
                     this.activeSearchId = null;
                     return;
@@ -1214,26 +1198,11 @@
 
             renderFilters() {
                 const filterContainer = document.getElementById('filter-container');
-                const myTasksWrapper = document.getElementById('my-tasks-wrapper');
                 if (!filterContainer) return;
 
                 // El contenedor principal de filtros ahora siempre se muestra para que se vea el filtro de estados
                 filterContainer.classList.remove('hidden');
                 filterContainer.classList.add('flex');
-
-                if (this.currentUserEmployeeId) {
-                    if (myTasksWrapper) {
-                        myTasksWrapper.classList.remove('hidden');
-                        myTasksWrapper.classList.add('flex');
-                    }
-                } else {
-                    if (myTasksWrapper) {
-                        myTasksWrapper.classList.add('hidden');
-                        myTasksWrapper.classList.remove('flex');
-                    }
-                    const toggle = document.getElementById('my-tasks-toggle');
-                    if (toggle) toggle.checked = false;
-                }
             },
 
             filterEmployeesForNewTask() {
