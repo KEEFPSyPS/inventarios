@@ -7,6 +7,9 @@
     <meta name="theme-color" content="#1d4ed8">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
     <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
@@ -48,15 +51,25 @@
         .rich-text i, .rich-text em { font-style: italic; }
         .rich-text u { text-decoration: underline; }
         .rich-text s { text-decoration: line-through; }
+
+        /* Estilos adicionales para modo oscuro (Especialmente Quill Editor) */
+        .dark .ql-toolbar.ql-snow, .dark .ql-container.ql-snow { border-color: #334155; }
+        .dark .ql-snow .ql-stroke { stroke: #cbd5e1; }
+        .dark .ql-snow .ql-fill, .dark .ql-snow .ql-stroke.ql-fill { fill: #cbd5e1; }
+        .dark .ql-snow .ql-picker { color: #cbd5e1; }
+        .dark .ql-snow .ql-picker-options { background-color: #1e293b; border-color: #334155; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col overflow-hidden transition-colors duration-300">
 
     <!-- Header -->
-    <header class="bg-blue-700 text-white shadow-md z-10">
+    <header class="bg-blue-700 dark:bg-slate-800 text-white shadow-md z-10 transition-colors duration-300">
         <div class="px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <i class="ph-fill ph-check-square-offset text-2xl"></i>
+                <button onclick="app.toggleDarkMode()" class="hover:text-blue-200 transition-colors ml-2" title="Alternar modo oscuro">
+                    <i id="dark-mode-icon" class="ph-fill ph-moon text-xl"></i>
+                </button>
                 <h1 class="font-bold text-lg tracking-wide">Gestor<span class="font-light">Tareas</span></h1>
             </div>
             <button id="btn-logout" onclick="app.logout()" class="hidden text-sm bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
@@ -72,17 +85,17 @@
         <section id="view-login" class="p-4 max-w-sm mx-auto mt-10 fade-in flex flex-col gap-4">
             <div class="text-center mb-4">
                 <i class="ph-fill ph-lock-key text-5xl text-blue-600 mb-2"></i>
-                <h2 class="text-2xl font-bold text-slate-700">Iniciar Sesión</h2>
-                <p class="text-slate-500 text-sm">Ingrese sus credenciales para acceder</p>
+                <h2 class="text-2xl font-bold text-slate-700 dark:text-slate-100">Iniciar Sesión</h2>
+                <p class="text-slate-500 dark:text-slate-400 text-sm">Ingrese sus credenciales para acceder</p>
             </div>
-            <form onsubmit="app.login(event)" class="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <form onsubmit="app.login(event)" class="space-y-4 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
                 <div>
-                    <label for="login-email" class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-                    <input type="email" id="login-email" required class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label for="login-email" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required class="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label for="login-password" class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-                    <input type="password" id="login-password" required class="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label for="login-password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required class="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
                     <i class="ph ph-sign-in"></i> Entrar
@@ -100,27 +113,27 @@
         <!-- ================= VIEW: SEARCH & LOG ================= -->
         <section id="view-search" class="p-4 max-w-2xl mx-auto hidden fade-in">
             <div class="mb-6">
-                <h2 class="text-xl font-bold text-slate-700 mb-2">Buscar Tarea Pendiente</h2>
+                <h2 class="text-xl font-bold text-slate-700 dark:text-slate-100 mb-2">Buscar Tarea Pendiente</h2>
                 <div class="flex gap-2 relative">
                     <div class="relative flex-1">
                         <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xl"></i>
                         <input type="text" id="search-input" oninput="app.handleSearch()" placeholder="Ingrese ID (ej. T-01) o título..." 
-                               class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+                               class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg transition-colors">
                     </div>
-                    <button onclick="app.loadData(true)" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Actualizar Lista">
+                    <button onclick="app.loadData(true)" class="bg-slate-700 dark:bg-slate-600 hover:bg-slate-800 dark:hover:bg-slate-500 text-white px-4 py-3 rounded-xl shadow-sm transition-colors flex items-center justify-center" title="Actualizar Lista">
                         <i class="ph ph-arrows-clockwise text-2xl"></i>
                     </button>
                 </div>
                 <!-- Filtros -->
                 <div id="filter-container" class="hidden items-center justify-between gap-3 mt-4 flex-wrap">
-                    <select id="priority-filter" onchange="app.handleSearch()" class="p-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-600">
+                    <select id="priority-filter" onchange="app.handleSearch()" class="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 font-medium text-slate-600 dark:text-slate-300">
                         <option value="all">Todas las prioridades</option>
                         <option value="alta">🔴 Alta Prioridad</option>
                         <option value="media">🟡 Prioridad Media</option>
                         <option value="baja">🟢 Prioridad Baja</option>
                     </select>
                     <div id="my-tasks-wrapper" class="hidden items-center gap-3">
-                        <span class="text-sm font-medium text-slate-700">Mostrar solo mis tareas</span>
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Mostrar solo mis tareas</span>
                         <label for="my-tasks-toggle" class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" value="" id="my-tasks-toggle" class="sr-only peer" onchange="app.handleSearch()">
                             <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -141,8 +154,8 @@
         <!-- ================= VIEW: HISTORY ================= -->
         <section id="view-history" class="p-4 max-w-3xl mx-auto hidden fade-in">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-slate-700">Tareas Completadas</h2>
-                <button onclick="app.exportToCSV()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                <h2 class="text-xl font-bold text-slate-700 dark:text-slate-100">Tareas Completadas</h2>
+                <button onclick="app.exportToCSV()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
                     <i class="ph ph-download-simple"></i> Exportar
                 </button>
             </div>
@@ -154,40 +167,40 @@
 
         <!-- ================= VIEW: ADMIN ================= -->
         <section id="view-admin" class="p-4 max-w-3xl mx-auto hidden fade-in">
-            <h2 class="text-xl font-bold text-slate-700 mb-4">Panel de Administración</h2>
+            <h2 class="text-xl font-bold text-slate-700 dark:text-slate-100 mb-4">Panel de Administración</h2>
             
             <!-- Admin Tabs -->
-            <div class="flex bg-slate-200 rounded-lg p-1 mb-6">
-                <button onclick="app.switchAdminTab('tasks')" id="tab-tasks" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-blue-700">Tareas</button>
-                <button onclick="app.switchAdminTab('areas')" id="tab-areas" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Áreas</button>
-                <button onclick="app.switchAdminTab('employees')" id="tab-employees" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 hover:text-slate-800">Personal</button>
+            <div class="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1 mb-6 transition-colors">
+                <button onclick="app.switchAdminTab('tasks')" id="tab-tasks" class="flex-1 py-2 text-sm font-medium rounded-md bg-white dark:bg-slate-700 shadow-sm text-blue-700 dark:text-blue-400">Tareas</button>
+                <button onclick="app.switchAdminTab('areas')" id="tab-areas" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">Áreas</button>
+                <button onclick="app.switchAdminTab('employees')" id="tab-employees" class="flex-1 py-2 text-sm font-medium rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">Personal</button>
             </div>
 
             <!-- Admin Content: Tasks -->
             <div id="admin-tasks" class="space-y-4">
-                <form onsubmit="app.addTask(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3">
-                    <h3 class="font-semibold text-slate-700 mb-1">Añadir Nueva Tarea</h3>
+                <form onsubmit="app.addTask(event)" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col gap-3 transition-colors">
+                    <h3 class="font-semibold text-slate-700 dark:text-slate-200 mb-1">Añadir Nueva Tarea</h3>
                     <div class="flex flex-col gap-3">
-                        <input type="text" id="new-task-title" placeholder="Título de la tarea" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        <div class="bg-white">
+                        <input type="text" id="new-task-title" placeholder="Título de la tarea" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <div class="bg-white dark:bg-slate-800">
                             <div id="new-task-description" style="min-height: 100px;"></div>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <select id="new-task-area" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <select id="new-task-area" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <!-- Areas populated dynamically -->
                         </select>
-                        <select id="new-task-employee" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <select id="new-task-employee" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Asignar a Persona...</option>
                             <!-- Employees populated dynamically -->
                         </select>
-                        <select id="new-task-priority" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <select id="new-task-priority" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Prioridad...</option>
                             <option value="baja">Baja</option>
                             <option value="media">Media</option>
                             <option value="alta">Alta</option>
                         </select>
-                        <select id="new-task-requires-count" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <select id="new-task-requires-count" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Tipo de registro...</option>
                             <option value="false">Sin Conteo</option>
                             <option value="true">Por Conteo Numérico</option>
@@ -202,8 +215,8 @@
 
             <!-- Admin Content: Areas -->
             <div id="admin-areas" class="space-y-4 hidden">
-                <form onsubmit="app.addArea(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex gap-2">
-                    <input type="text" id="new-area-name" placeholder="Nombre del Área (ej. Almacén Principal)" required class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <form onsubmit="app.addArea(event)" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex gap-2 transition-colors">
+                    <input type="text" id="new-area-name" placeholder="Nombre del Área (ej. Almacén Principal)" required class="flex-1 p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium"><i class="ph ph-plus"></i></button>
                 </form>
                 <div id="admin-area-list" class="space-y-2 mt-4"></div>
@@ -211,15 +224,15 @@
 
             <!-- Admin Content: Employees -->
             <div id="admin-employees" class="space-y-4 hidden">
-                <form onsubmit="app.addEmployee(event)" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3">
-                    <h3 class="font-semibold text-slate-700 mb-1">Añadir Personal</h3>
+                <form onsubmit="app.addEmployee(event)" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col gap-3 transition-colors">
+                    <h3 class="font-semibold text-slate-700 dark:text-slate-200 mb-1">Añadir Personal</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input type="text" id="new-emp-name" placeholder="Nombre completo" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        <input type="email" id="new-emp-email" placeholder="Correo electrónico de sesión" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="new-emp-name" placeholder="Nombre completo" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="email" id="new-emp-email" placeholder="Correo electrónico de sesión" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <input type="text" id="new-emp-role" placeholder="Cargo (ej. Almacenista)" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        <select id="new-emp-area" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <input type="text" id="new-emp-role" placeholder="Cargo (ej. Almacenista)" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select id="new-emp-area" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                             <!-- Areas populated dynamically -->
                         </select>
                     </div>
@@ -234,7 +247,7 @@
     </main>
 
     <!-- Bottom Navigation (Mobile mostly, fixed bottom) -->
-    <nav id="bottom-nav" class="hidden bg-white border-t border-slate-200 md:relative absolute bottom-0 w-full z-20 pb-safe">
+    <nav id="bottom-nav" class="hidden bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 md:relative absolute bottom-0 w-full z-20 pb-safe transition-colors">
         <div class="flex justify-around max-w-2xl mx-auto">
             <button onclick="app.switchView('search')" id="nav-search" class="flex-1 py-3 flex flex-col items-center text-blue-600 transition-colors">
                 <i class="ph-fill ph-list-checks text-2xl mb-1"></i>
@@ -292,9 +305,25 @@
             currentUserEmployeeId: null,
             quill: null, // Instancia del editor de texto
             unsubscribe: null, // Suscripción de Firebase
+            
+            toggleDarkMode() {
+                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('darkMode', isDark);
+                
+                const icon = document.getElementById('dark-mode-icon');
+                if(icon) icon.className = isDark ? 'ph-fill ph-sun text-xl' : 'ph-fill ph-moon text-xl';
+            },
 
             // Initialize App
             init() {
+                // Inicializar preferencias de modo oscuro
+                if (localStorage.getItem('darkMode') === 'true' || (!('darkMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                    const icon = document.getElementById('dark-mode-icon');
+                    if(icon) icon.className = 'ph-fill ph-sun text-xl';
+                }
+
                 auth.onAuthStateChanged(user => {
                     if (user) {
                         document.getElementById('btn-logout').classList.remove('hidden');
@@ -560,7 +589,7 @@
                 
                 // Textarea para comentarios (Aplica para todos los tipos de tareas)
                 const commentValue = log && log.comments !== undefined ? log.comments : '';
-                const commentHtml = `<div class="mt-3"><label for="${prefix}-comments-${id}" class="block text-xs font-semibold text-slate-500 mb-1">Comentarios / Observaciones</label><textarea id="${prefix}-comments-${id}" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm" rows="2" placeholder="Detalles u observaciones de la acción realizada...">${commentValue}</textarea></div>`;
+                const commentHtml = `<div class="mt-3"><label for="${prefix}-comments-${id}" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Comentarios / Observaciones</label><textarea id="${prefix}-comments-${id}" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm" rows="2" placeholder="Detalles u observaciones de la acción realizada...">${commentValue}</textarea></div>`;
 
                 // Case 1: Checklist
                 const isChecklist = task.requiresCount && task.description && task.description.includes('<li>');
@@ -579,9 +608,9 @@
 
                         if (itemText) {
                             checklistHtml += `
-                                <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200">
-                                    <label for="${prefix}-checklist-item-${id}-${index}" class="text-sm text-slate-700 flex-1">${itemText}</label>
-                                    <input type="number" id="${prefix}-checklist-item-${id}-${index}" data-item-text="${itemText}" value="${savedCount}" min="0" placeholder="0" class="w-20 p-1.5 text-center rounded-md border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                                <div class="flex items-center justify-between gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <label for="${prefix}-checklist-item-${id}-${index}" class="text-sm text-slate-700 dark:text-slate-200 flex-1">${itemText}</label>
+                                    <input type="number" id="${prefix}-checklist-item-${id}-${index}" data-item-text="${itemText}" value="${savedCount}" min="0" placeholder="0" class="w-20 p-1.5 text-center rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                                 </div>
                             `;
                         }
@@ -593,7 +622,7 @@
                 // Case 2: Simple Count
                 if (task.requiresCount) {
                     const value = log && log.quantityCounted !== null ? log.quantityCounted : '';
-                    return `<div><label for="${prefix}-qty-${id}" class="block text-xs font-semibold text-slate-500 mb-1">Cantidad Contada</label><input type="number" id="${prefix}-qty-${id}" value="${value}" required min="0" placeholder="Ej. 25" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>` + commentHtml;
+                    return `<div><label for="${prefix}-qty-${id}" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Cantidad Contada</label><input type="number" id="${prefix}-qty-${id}" value="${value}" required min="0" placeholder="Ej. 25" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"></div>` + commentHtml;
                 }
 
                 // Case 3: Sin Conteo (Tarea simple)
@@ -663,7 +692,7 @@
                 }
 
                 if (results.length === 0) {
-                    container.innerHTML = `<p class="text-center text-slate-500 py-4">
+                    container.innerHTML = `<p class="text-center text-slate-500 dark:text-slate-400 py-4">
                         ${availableTasks.length === 0 ? (showOnlyMyTasks ? 'No tienes tareas asignadas.' : 'Todas las tareas han sido completadas.') : 'No se encontraron tareas con ese criterio.'}
                     </p>`;
                     this.activeSearchId = null;
@@ -684,39 +713,39 @@
                     // Configuración de la etiqueta de Prioridad
                     let priorityLabel = 'Normal';
                     let priorityIcon = 'ph-info';
-                    let priorityColor = 'bg-cyan-50 text-cyan-700 border-cyan-200';
+                    let priorityColor = 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800';
                     
-                    if(t.priority === 'alta') { priorityLabel = 'Alta Prioridad'; priorityIcon = 'ph-warning-octagon'; priorityColor = 'bg-rose-50 text-rose-700 border-rose-200'; }
-                    else if(t.priority === 'media') { priorityLabel = 'Prioridad Media'; priorityIcon = 'ph-warning-circle'; priorityColor = 'bg-amber-50 text-amber-700 border-amber-200'; }
+                    if(t.priority === 'alta') { priorityLabel = 'Alta Prioridad'; priorityIcon = 'ph-warning-octagon'; priorityColor = 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800'; }
+                    else if(t.priority === 'media') { priorityLabel = 'Prioridad Media'; priorityIcon = 'ph-warning-circle'; priorityColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'; }
                     else if(t.priority === 'baja') { priorityLabel = 'Prioridad Baja'; }
 
                     let indicatorColor = 'bg-emerald-500';
-                    let indicatorBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    let indicatorBg = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
                     let pulse = '';
                     
                     if (daysOld === 2) {
                         indicatorColor = 'bg-amber-500';
-                        indicatorBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                        indicatorBg = 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
                     } else if (daysOld >= 3) {
                         indicatorColor = 'bg-red-500';
-                        indicatorBg = 'bg-red-50 text-red-700 border-red-200';
+                        indicatorBg = 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
                         pulse = 'animate-pulse';
                     }
 
                     return `
-                    <div class="bg-white rounded-xl shadow-sm border ${daysOld >= 3 ? 'border-red-200' : 'border-slate-100'} overflow-hidden transition-all">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${daysOld >= 3 ? 'border-red-200 dark:border-red-800' : 'border-slate-100 dark:border-slate-700'} overflow-hidden transition-all">
                         <div class="p-4 flex justify-between items-center cursor-pointer" onclick="app.toggleLogForm('${t.id}')">
                             <div>
                                 <div class="flex items-center flex-wrap gap-2 mb-1">
-                                    <span class="text-xs font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded">ID: ${t.code}</span>
+                                    <span class="text-xs font-bold tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">ID: ${t.code}</span>
                                     <span class="text-[10px] font-bold px-2 py-1 rounded-full border flex items-center gap-1.5 ${indicatorBg}" title="Tiempo en lista">
                                         <div class="w-2 h-2 rounded-full ${indicatorColor} ${pulse}"></div>
                                         ${daysOld} ${daysOld === 1 ? 'DÍA' : 'DÍAS'}
                                     </span>
-                                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Área asignada">
+                                    <span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Área asignada">
                                         <i class="ph-fill ph-map-pin"></i> ${area.name}
                                     </span>
-                                    <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Asignado a">
+                                    <span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-1 rounded-full font-semibold uppercase flex items-center gap-1" title="Asignado a">
                                         <i class="ph-fill ph-user"></i> ${employee.name}
                                     </span>
                                     ${t.priority ? `
@@ -725,23 +754,23 @@
                                     </span>
                                     ` : ''}
                                 </div>
-                                <h3 class="font-bold text-slate-800 text-lg">${t.title}</h3>${t.description ? `<div class="text-sm text-slate-600 mt-2 rich-text">${t.description}</div>` : ''}
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg">${t.title}</h3>${t.description ? `<div class="text-sm text-slate-600 dark:text-slate-400 mt-2 rich-text">${t.description}</div>` : ''}
                             </div>
                             <i class="ph ${this.activeSearchId === t.id ? 'ph-caret-up' : 'ph-caret-down'} text-slate-400 text-xl transition-transform" id="icon-${t.id}"></i>
                         </div>
                         
                         <!-- Log Form Accordion -->
-                        <div id="form-${t.id}" class="slide-down ${this.activeSearchId === t.id ? 'active' : ''} bg-slate-50 border-t border-slate-100">
+                        <div id="form-${t.id}" class="slide-down ${this.activeSearchId === t.id ? 'active' : ''} bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                             <form onsubmit="app.submitLog(event, '${t.id}')" class="p-4 space-y-3">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Área / Proyecto</label>
-                                    <div class="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-700 text-sm font-medium flex items-center gap-2">
+                                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Área / Proyecto</label>
+                                    <div class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium flex items-center gap-2">
                                         <i class="ph ph-map-pin"></i> ${this.data.areas.find(a => a.id === t.areaId)?.name || 'Sin área asignada'}
                                     </div>
                                 </div>
                                 <div>
-                                    <label for="log-emp-${t.id}" class="block text-xs font-semibold text-slate-500 mb-1">Personal Responsable</label>
-                                    <select id="log-emp-${t.id}" required class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm">
+                                    <label for="log-emp-${t.id}" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Personal Responsable</label>
+                                    <select id="log-emp-${t.id}" required class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                                         <option value="">Seleccione el empleado...</option>
                                         <!-- Populated via JS -->
                                     </select>
@@ -941,9 +970,9 @@
 
                 if (this.data.logs.length === 0) {
                     container.innerHTML = `
-                        <div class="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-100">
-                            <i class="ph ph-clipboard text-4xl text-slate-300 mb-2"></i>
-                            <p class="text-slate-500">No hay registros aún.</p>
+                        <div class="text-center p-8 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <i class="ph ph-clipboard text-4xl text-slate-300 dark:text-slate-600 mb-2"></i>
+                            <p class="text-slate-500 dark:text-slate-400">No hay registros aún.</p>
                         </div>`;
                     return;
                 }
@@ -953,24 +982,24 @@
 
                     if (this.editingLogId === log.id) {
                         return `
-                        <div class="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-200">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800">
                             <form onsubmit="app.saveLogEdit(event, '${log.id}')" class="space-y-3">
-                                <h4 class="font-bold text-slate-800">Modificar: ${taskObj.title}</h4>
+                                <h4 class="font-bold text-slate-800 dark:text-slate-100">Modificar: ${taskObj.title}</h4>
                                 <div class="grid grid-cols-1 gap-2">
                                     <label for="edit-area-${log.id}" class="sr-only">Área</label>
-                                    <select id="edit-area-${log.id}" class="p-2 rounded border border-slate-300 text-sm w-full outline-none bg-white" onchange="app.filterEmployeesForEdit('${log.id}')" required>
+                                    <select id="edit-area-${log.id}" class="p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm w-full outline-none" onchange="app.filterEmployeesForEdit('${log.id}')" required>
                                         <option value="">Seleccionar Área...</option>
                                         ${this.data.areas.map(a => `<option value="${a.id}" ${a.id === log.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
                                     </select>
                                     <label for="edit-emp-${log.id}" class="sr-only">Empleado</label>
-                                    <select id="edit-emp-${log.id}" class="p-2 rounded border border-slate-300 text-sm w-full outline-none bg-white" required>
+                                    <select id="edit-emp-${log.id}" class="p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm w-full outline-none" required>
                                         <option value="">Seleccionar Empleado...</option>
                                         ${this.data.employees.map(e => `<option value="${e.id}" ${e.id === log.employeeId ? 'selected' : ''}>${e.name}</option>`).join('')}
                                     </select>
                                     ${this.generateTaskInputs(taskObj, log)}
                                 </div>
                                 <div class="flex justify-end gap-2 mt-2">
-                                    <button type="button" onclick="app.cancelEdit()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
+                                    <button type="button" onclick="app.cancelEdit()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
                                     <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">Guardar</button>
                                 </div>
                             </form>
@@ -995,10 +1024,10 @@
                         
                         if (daysOld === 2) {
                             indicatorColor = 'bg-amber-500';
-                            indicatorBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                            indicatorBg = 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
                         } else if (daysOld >= 3) {
                             indicatorColor = 'bg-red-500';
-                            indicatorBg = 'bg-red-50 text-red-700 border-red-200';
+                            indicatorBg = 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
                         }
                         
                         indicatorHtml = `
@@ -1008,58 +1037,58 @@
                         </span>`;
                     }
 
-                    const commentDisplay = log.comments ? `<div class="mt-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-sm text-slate-600"><span class="font-bold text-slate-700 text-xs block mb-0.5">Comentarios / Observaciones:</span>${log.comments}</div>` : '';
+                    const commentDisplay = log.comments ? `<div class="mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300"><span class="font-bold text-slate-700 dark:text-slate-200 text-xs block mb-0.5">Comentarios / Observaciones:</span>${log.comments}</div>` : '';
 
                     // Admin only: delete button
                     const editBtn = `<button onclick="app.editLog('${log.id}')" class="text-blue-400 hover:text-blue-600 p-1.5" title="Editar Registro"><i class="ph ph-pencil-simple text-xl"></i></button>`;
                     const deleteBtn = this.isAdmin ? `<button onclick="app.deleteTaskAndLog('${log.id}')" class="text-red-400 hover:text-red-600 p-1.5" title="Eliminar Registro y Tarea"><i class="ph ph-trash text-xl"></i></button>` : '';
 
                     return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between gap-4 transition-opacity ${log.supervisedAt ? 'opacity-75 bg-slate-50' : ''}">
+                    <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-4 transition-opacity ${log.supervisedAt ? 'opacity-75 bg-slate-50 dark:bg-slate-900' : ''}">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-bold text-slate-500">${date}</span>
-                                <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase">${area.name}</span>
+                                <span class="text-xs font-bold text-slate-500 dark:text-slate-400">${date}</span>
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase">${area.name}</span>
                                 ${indicatorHtml}
-                                ${log.supervisedAt ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1"><i class="ph-fill ph-check-circle"></i> Supervisado</span>` : ''}
+                                ${log.supervisedAt ? `<span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1"><i class="ph-fill ph-check-circle"></i> Supervisado</span>` : ''}
                             </div>
-                            <h4 class="font-bold text-slate-800 leading-tight">${taskObj.title} <span class="text-slate-400 font-normal text-sm">(#${taskObj.code})</span></h4>${taskObj.description ? `<div class="text-xs text-slate-600 mt-1 rich-text">${taskObj.description}</div>` : ''}
-                            <p class="text-sm text-slate-500 mt-1"><i class="ph ph-user text-xs"></i> ${emp.name}</p>
+                            <h4 class="font-bold text-slate-800 dark:text-slate-100 leading-tight">${taskObj.title} <span class="text-slate-400 font-normal text-sm">(#${taskObj.code})</span></h4>${taskObj.description ? `<div class="text-xs text-slate-600 dark:text-slate-400 mt-1 rich-text">${taskObj.description}</div>` : ''}
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><i class="ph ph-user text-xs"></i> ${emp.name}</p>
                             ${commentDisplay}
                         </div>
                         <div class="flex items-center gap-2">
                             ${log.checklistCounts && log.checklistCounts.length > 0 ? `
-                                <div class="text-left bg-blue-50 text-blue-700 rounded-lg p-3 w-64">
-                                    <span class="block text-[10px] uppercase tracking-wider font-bold opacity-70 mb-2 border-b border-blue-200 pb-1">Checklist Completado</span>
+                                <div class="text-left bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg p-3 w-64">
+                                    <span class="block text-[10px] uppercase tracking-wider font-bold opacity-70 mb-2 border-b border-blue-200 dark:border-blue-800 pb-1">Checklist Completado</span>
                                     <ul class="text-sm space-y-1 mt-2">
                                         ${log.checklistCounts.map(item => `
                                             <li class="flex justify-between items-center">
                                                 <span class="truncate pr-2">${item.text}</span>
-                                                <span class="font-bold bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">${item.count}</span>
+                                                <span class="font-bold bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full">${item.count}</span>
                                             </li>
                                         `).join('')}
                                     </ul>
-                                    <div class="text-right font-bold text-base mt-2 pt-2 border-t border-blue-200">
+                                    <div class="text-right font-bold text-base mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                                         Total: ${log.quantityCounted}
                                     </div>
                                 </div>
                             ` : (log.quantityCounted !== null ? `
-                                <div class="text-center bg-blue-50 text-blue-700 rounded-lg p-2 min-w-[3rem]">
+                                <div class="text-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg p-2 min-w-[3rem]">
                                     <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Cantidad</span>
                                     <span class="text-xl font-black">${log.quantityCounted}</span>
                                 </div>
                             ` : (log.hoursSpent !== null && log.hoursSpent !== undefined ? `
-                                <div class="text-center bg-blue-50 text-blue-700 rounded-lg p-2 min-w-[3rem]">
+                                <div class="text-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg p-2 min-w-[3rem]">
                                     <span class="block text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-[-4px]">Horas</span>
                                     <span class="text-xl font-black">${log.hoursSpent}</span>
                                 </div>
                             ` : `
-                                <div class="text-center bg-emerald-50 text-emerald-600 rounded-lg p-2 min-w-[4rem] flex flex-col items-center justify-center">
+                                <div class="text-center bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg p-2 min-w-[4rem] flex flex-col items-center justify-center">
                                     <span class="block text-[10px] uppercase tracking-wider font-bold opacity-70 mb-0.5">Listo</span>
                                     <i class="ph-fill ph-check-circle text-2xl"></i>
                                 </div>
                             `))}
-                            <div class="flex flex-col items-center gap-1 ml-2 border-l border-slate-100 pl-2">
+                            <div class="flex flex-col items-center gap-1 ml-2 border-l border-slate-100 dark:border-slate-700 pl-2">
                                 <button onclick="app.superviseLog('${log.id}')" class="${log.supervisedAt ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'} p-1.5 transition-colors" title="${log.supervisedAt ? 'Quitar Supervisión' : 'Marcar Supervisado'}"><i class="ph-fill ph-check-circle text-xl"></i></button>
                                 <button onclick="app.returnTask('${log.id}')" class="text-amber-400 hover:text-amber-600 p-1.5 transition-colors" title="Devolver a Pendientes"><i class="ph-fill ph-arrow-u-up-left text-xl"></i></button>
                                 ${editBtn}
@@ -1305,9 +1334,9 @@
                 
                 let tasksHtml = '';
                 if (this.data.tasks.length === 0) {
-                    tasksHtml = '<p class="text-sm text-slate-500 text-center py-4">No hay tareas registradas.</p>';
+                    tasksHtml = '<p class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay tareas registradas.</p>';
                 } else {
-                    tasksHtml = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Tareas Registradas</h3>` + this.data.tasks.map(t => {
+                    tasksHtml = `<h3 class="font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-3 px-1 border-b border-slate-200 dark:border-slate-700 pb-2">Tareas Registradas</h3>` + this.data.tasks.map(t => {
                     const employee = this.data.employees.find(e => e.id === t.employeeId) || { name: 'Sin asignar' };
                     const area = this.data.areas.find(a => a.id === t.areaId) || { name: 'Sin área' };
                     let priorityLabel = 'Normal';
@@ -1316,13 +1345,13 @@
                     else if(t.priority === 'baja') priorityLabel = 'Baja';
 
                     return `
-                    <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
                         <div>
-                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">${t.code}</span>
-                            <p class="font-medium text-slate-700 mt-1">${t.title}</p>
+                            <span class="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">${t.code}</span>
+                            <p class="font-medium text-slate-700 dark:text-slate-200 mt-1">${t.title}</p>
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="text-xs text-slate-400"><i class="ph ph-map-pin"></i> ${area.name}</span>
-                                <span class="text-xs text-slate-500"><i class="ph ph-user"></i> ${employee.name}</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400"><i class="ph ph-user"></i> ${employee.name}</span>
                                 ${t.priority ? `<span class="text-[10px] font-semibold uppercase ${t.priority === 'alta' ? 'text-rose-600' : (t.priority === 'media' ? 'text-amber-600' : 'text-cyan-600')}"><i class="ph ph-flag"></i> Prioridad ${priorityLabel}</span>` : ''}
                             </div>
                         </div>
@@ -1334,20 +1363,20 @@
                 let oldProductsHtml = '';
                 if (this.data.products && this.data.products.length > 0) {
                     oldProductsHtml = `
-                    <div class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div class="mt-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                         <div class="flex items-start gap-3">
                             <i class="ph-fill ph-warning text-amber-500 text-2xl mt-1"></i>
                             <div>
-                                <h3 class="font-semibold text-amber-800">Artículos Antiguos Detectados</h3>
-                                <p class="text-sm text-amber-700 mb-4">Hemos encontrado "productos" de una versión anterior. Puedes eliminarlos para limpiar la base de datos.</p>
+                                <h3 class="font-semibold text-amber-800 dark:text-amber-400">Artículos Antiguos Detectados</h3>
+                                <p class="text-sm text-amber-700 dark:text-amber-500 mb-4">Hemos encontrado "productos" de una versión anterior. Puedes eliminarlos para limpiar la base de datos.</p>
                             </div>
                         </div>
                         <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
                             ${this.data.products.map(p => `
-                                <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
+                                <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
                                     <div>
-                                        <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">${p.code || 'S/C'}</span>
-                                        <p class="font-medium text-slate-700 mt-1">${p.name || 'Sin Nombre'}</p>
+                                        <span class="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">${p.code || 'S/C'}</span>
+                                        <p class="font-medium text-slate-700 dark:text-slate-200 mt-1">${p.name || 'Sin Nombre'}</p>
                                     </div>
                                     <button onclick="app.deleteOldProduct('${p.id}')" class="text-slate-400 hover:text-red-500 p-2" title="Eliminar este artículo"><i class="ph ph-trash"></i></button>
                                 </div>
@@ -1384,12 +1413,12 @@
                 const container = document.getElementById('admin-area-list');
                 
                 if (this.data.areas.length === 0) {
-                    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">No hay áreas registradas.</p>';
+                    container.innerHTML = '<p class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay áreas registradas.</p>';
                     return;
                 }
-                container.innerHTML = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Áreas Registradas</h3>` + this.data.areas.map(a => `
-                    <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
-                        <p class="font-medium text-slate-700"><i class="ph ph-map-pin mr-2 text-slate-400"></i>${a.name}</p>
+                container.innerHTML = `<h3 class="font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-3 px-1 border-b border-slate-200 dark:border-slate-700 pb-2">Áreas Registradas</h3>` + this.data.areas.map(a => `
+                    <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                        <p class="font-medium text-slate-700 dark:text-slate-200"><i class="ph ph-map-pin mr-2 text-slate-400"></i>${a.name}</p>
                         <button onclick="app.deleteArea('${a.id}')" class="text-slate-400 hover:text-red-500 p-2"><i class="ph ph-trash"></i></button>
                     </div>
                 `).join('');
@@ -1432,10 +1461,10 @@
                 const container = document.getElementById('admin-employee-list');
                 
                 if (this.data.employees.length === 0) {
-                    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-4">No hay personal registrado.</p>';
+                    container.innerHTML = '<p class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay personal registrado.</p>';
                     return;
                 }
-                container.innerHTML = `<h3 class="font-semibold text-slate-700 mt-2 mb-3 px-1 border-b border-slate-200 pb-2">Personal Registrado</h3>` + this.data.employees.map(e => {
+                container.innerHTML = `<h3 class="font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-3 px-1 border-b border-slate-200 dark:border-slate-700 pb-2">Personal Registrado</h3>` + this.data.employees.map(e => {
                     const area = this.data.areas.find(a => a.id === e.areaId) || {name: 'Sin área'};
                     return `
                     <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center">
