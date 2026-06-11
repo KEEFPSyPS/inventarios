@@ -251,6 +251,11 @@
         </div>
     </nav>
 
+    <!-- Botón Volver Arriba -->
+    <button id="btn-scroll-top" class="fixed bottom-24 md:bottom-10 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-40 transition-all duration-300 opacity-0 translate-y-10 pointer-events-none flex items-center justify-center" title="Volver arriba">
+        <i class="ph ph-arrow-up text-xl font-bold"></i>
+    </button>
+
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="fixed top-16 right-0 left-0 flex flex-col items-center space-y-2 z-50 pointer-events-none px-4"></div>
 
@@ -1451,6 +1456,24 @@
         // Boot
         document.addEventListener('DOMContentLoaded', () => {
             app.init();
+            
+            // Lógica del botón de volver arriba
+            const mainScroll = document.getElementById('main-scroll');
+            const btnScrollTop = document.getElementById('btn-scroll-top');
+
+            mainScroll.addEventListener('scroll', () => {
+                if (mainScroll.scrollTop > 300) {
+                    btnScrollTop.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+                    btnScrollTop.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
+                } else {
+                    btnScrollTop.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none');
+                    btnScrollTop.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+                }
+            });
+
+            btnScrollTop.addEventListener('click', () => {
+                mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+            });
         });
 
         // Eliminar Service Workers antiguos para evitar problemas de caché
