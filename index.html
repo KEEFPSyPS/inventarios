@@ -111,13 +111,21 @@
                         <i class="ph ph-arrows-clockwise text-2xl"></i>
                     </button>
                 </div>
-                <!-- Filtro "Mis Tareas" -->
-                <div id="filter-container" class="hidden items-center justify-end gap-3 mt-4">
-                    <span class="text-sm font-medium text-slate-700">Mostrar solo mis tareas</span>
-                    <label for="my-tasks-toggle" class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" value="" id="my-tasks-toggle" class="sr-only peer" onchange="app.handleSearch()">
-                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
+                <!-- Filtros -->
+                <div id="filter-container" class="hidden items-center justify-between gap-3 mt-4 flex-wrap">
+                    <select id="status-filter" onchange="app.handleSearch()" class="p-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-600">
+                        <option value="all">Todos los estados</option>
+                        <option value="green">🟢 Nuevos (0-1 Días)</option>
+                        <option value="yellow">🟡 Atención (2 Días)</option>
+                        <option value="red">🔴 Atrasados (3+ Días)</option>
+                    </select>
+                    <div id="my-tasks-wrapper" class="hidden items-center gap-3">
+                        <span class="text-sm font-medium text-slate-700">Mostrar solo mis tareas</span>
+                        <label for="my-tasks-toggle" class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" value="" id="my-tasks-toggle" class="sr-only peer" onchange="app.handleSearch()">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -166,7 +174,7 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <select id="new-task-area" onchange="app.filterEmployeesForNewTask()" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <select id="new-task-area" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                             <!-- Areas populated dynamically -->
                         </select>
                         <select id="new-task-employee" required class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
@@ -371,8 +379,31 @@
                             }
                         }
                         
+                        // === MODIFICACIÓN IMPORTANTE ===
                         this.setupDOM();
-                        this.renderAll();
+                        
+                        // Renderizar todo lo administrativo
+                        this.renderAdminTasks();
+                        this.renderAdminAreas();
+                        this.renderAdminEmployees();
+                        this.renderDynamicSelects();
+                        this.renderFilters();
+                        
+                        // Actualizar la vista actual según corresponda
+                        if (this.currentView === 'history') {
+                            this.renderHistory();
+                        } else if (this.currentView === 'search') {
+                            this.handleSearch();
+                            // Si hay una tarea activa y ya fue completada por otro, cerrarla
+                            if (this.activeSearchId) {
+                                const taskStillExists = this.data.tasks.some(t => t.id === this.activeSearchId && 
+                                    !this.data.logs.some(l => l.taskId === this.activeSearchId));
+                                if (!taskStillExists) {
+                                    this.activeSearchId = null;
+                                }
+                            }
+                        }
+                        // === FIN DE MODIFICACIÓN ===
                         
                         if (showFeedback) {
                             this.showToast('Lista sincronizada', 'success');
@@ -452,6 +483,7 @@
                 });
 
                 if (viewId === 'history') this.renderHistory();
+                if (viewId === 'search') this.handleSearch();
             },
 
             switchAdminTab(tabId) {
@@ -568,6 +600,7 @@
                 const query = document.getElementById('search-input').value.toLowerCase().trim();
                 const container = document.getElementById('search-results');
                 const showOnlyMyTasks = document.getElementById('my-tasks-toggle')?.checked || false;
+                const statusFilter = document.getElementById('status-filter')?.value || 'all';
                 
                 // Guardar estado de inputs activos en el formulario abierto
                 let activeFocusId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
@@ -592,10 +625,39 @@
                 let results = availableTasks;
 
                 if (query.length > 0) {
-                    results = availableTasks.filter(t => 
-                        t.code.toLowerCase().includes(query) || t.title.toLowerCase().includes(query)
-                    );
+                    results = availableTasks.filter(t => {
+                        const emp = this.data.employees.find(e => e.id === t.employeeId);
+                        const empName = emp ? emp.name.toLowerCase() : '';
+                        return t.code.toLowerCase().includes(query) || 
+                               t.title.toLowerCase().includes(query) ||
+                               empName.includes(query);
+                    });
                 }
+
+                // Aplicar filtro por semáforo de tiempo
+                if (statusFilter !== 'all') {
+                    results = results.filter(t => {
+                        const createdDate = t.createdAt ? new Date(t.createdAt).getTime() : Date.now();
+                        const daysOld = Math.floor((Date.now() - createdDate) / (1000 * 60 * 60 * 24));
+                        if (statusFilter === 'green') return daysOld <= 1;
+                        if (statusFilter === 'yellow') return daysOld === 2;
+                        if (statusFilter === 'red') return daysOld >= 3;
+                        return true;
+                    });
+                }
+
+                // Ordenar: Prioridad primero (Alta > Media > Baja), luego fecha más reciente
+                results.sort((a, b) => {
+                    const priorityWeight = { 'alta': 3, 'media': 2, 'baja': 1 };
+                    const weightA = priorityWeight[a.priority] || 0;
+                    const weightB = priorityWeight[b.priority] || 0;
+                    if (weightA !== weightB) {
+                        return weightB - weightA; // Mayor prioridad arriba
+                    }
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateB - dateA; // Más reciente arriba
+                });
 
                 // Si la tarea abierta fue completada por otro usuario y desapareció, limpiar la selección
                 if (this.activeSearchId && !results.some(t => t.id === this.activeSearchId)) {
@@ -1084,14 +1146,23 @@
 
             renderFilters() {
                 const filterContainer = document.getElementById('filter-container');
+                const myTasksWrapper = document.getElementById('my-tasks-wrapper');
                 if (!filterContainer) return;
 
+                // El contenedor principal de filtros ahora siempre se muestra para que se vea el filtro de estados
+                filterContainer.classList.remove('hidden');
+                filterContainer.classList.add('flex');
+
                 if (this.currentUserEmployeeId) {
-                    filterContainer.classList.remove('hidden');
-                    filterContainer.classList.add('flex');
+                    if (myTasksWrapper) {
+                        myTasksWrapper.classList.remove('hidden');
+                        myTasksWrapper.classList.add('flex');
+                    }
                 } else {
-                    filterContainer.classList.add('hidden');
-                    filterContainer.classList.remove('flex');
+                    if (myTasksWrapper) {
+                        myTasksWrapper.classList.add('hidden');
+                        myTasksWrapper.classList.remove('flex');
+                    }
                     const toggle = document.getElementById('my-tasks-toggle');
                     if (toggle) toggle.checked = false;
                 }
@@ -1101,14 +1172,12 @@
                 const empSelect = document.getElementById('new-task-employee');
                 if (!empSelect) return;
 
-                const areaId = document.getElementById('new-task-area')?.value;
                 const currentEmployee = empSelect.value;
-                const filtered = areaId ? this.data.employees.filter(e => e.areaId === areaId) : this.data.employees;
                 
                 empSelect.innerHTML = `<option value="">Asignar a Persona...</option>` + 
-                    filtered.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+                    this.data.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
                 
-                if (filtered.some(e => e.id === currentEmployee)) {
+                if (this.data.employees.some(e => e.id === currentEmployee)) {
                     empSelect.value = currentEmployee;
                 } else {
                     empSelect.value = '';
