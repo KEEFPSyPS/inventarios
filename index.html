@@ -1132,9 +1132,12 @@
                 if (deletedCount > 0) {
                     this.saveData();
                     console.log(`Se eliminaron ${deletedCount} registro(s) supervisado(s) con más de 24h`);
-                    // Refrescar vistas si es necesario
+                    // Refrescar todas las vistas incluyendo el panel de administración
                     if (this.currentView === 'history') this.renderHistory();
                     if (this.currentView === 'search') this.handleSearch();
+                    this.renderAdminTasks();
+                    this.renderAdminAreas();
+                    this.renderAdminEmployees();
                 }
                 return deletedCount;
             },
@@ -1346,11 +1349,17 @@
             renderAdminTasks() {
                 const container = document.getElementById('admin-task-list');
                 
+                // Filtrar: ocultar tareas que ya tienen un registro supervisado (completadas y supervisadas)
+                const supervisedTaskIds = this.data.logs
+                    .filter(log => log.supervisedAt)
+                    .map(log => log.taskId);
+                const pendingTasks = this.data.tasks.filter(t => !supervisedTaskIds.includes(t.id));
+                
                 let tasksHtml = '';
-                if (this.data.tasks.length === 0) {
+                if (pendingTasks.length === 0) {
                     tasksHtml = '<p class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay tareas registradas.</p>';
                 } else {
-                    tasksHtml = `<h3 class="font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-3 px-1 border-b border-slate-200 dark:border-slate-700 pb-2">Tareas Registradas</h3>` + this.data.tasks.map(t => {
+                    tasksHtml = `<h3 class="font-semibold text-slate-700 dark:text-slate-200 mt-2 mb-3 px-1 border-b border-slate-200 dark:border-slate-700 pb-2">Tareas Registradas</h3>` + pendingTasks.map(t => {
                     const employee = this.data.employees.find(e => e.id === t.employeeId) || { name: 'Sin asignar' };
                     const area = this.data.areas.find(a => a.id === t.areaId) || { name: 'Sin área' };
                     let priorityLabel = 'Normal';
