@@ -297,6 +297,7 @@
             currentUserEmployeeId: null,
             quill: null, // Instancia del editor de texto
             unsubscribe: null, // Suscripción de Firebase
+            cleanupInterval: null, // Intervalo para limpiar registros supervisados
             
             toggleDarkMode() {
                 document.documentElement.classList.toggle('dark');
@@ -338,6 +339,14 @@
                 window.addEventListener('online', () => this.updateConnectionStatus(true));
                 window.addEventListener('offline', () => this.updateConnectionStatus(false));
                 this.updateConnectionStatus(navigator.onLine);
+
+                // Revisar cada 60 segundos si hay registros supervisados que deban eliminarse
+                if (this.cleanupInterval) {
+                    clearInterval(this.cleanupInterval);
+                }
+                this.cleanupInterval = setInterval(() => {
+                    this.cleanupSupervisedLogs();
+                }, 60000); // 60,000 ms = 1 minuto
             },
 
             updateConnectionStatus(isOnline) {
@@ -405,8 +414,12 @@
                             }
                         }
                         
+                        // Limpiar registros supervisados que ya cumplieron 24h (incluye entradas antiguas)
+                        this.cleanupSupervisedLogs();
+
                         // === MODIFICACIÓN IMPORTANTE ===
                         this.setupDOM();
+
                         
                         // Renderizar todo lo administrativo
                         this.renderAdminTasks();
@@ -1097,6 +1110,35 @@
                 }
             },
 
+            // Elimina registros supervisados que tengan más de 24 horas desde su supervisión
+            cleanupSupervisedLogs() {
+                const now = Date.now();
+                const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+                let deletedCount = 0;
+
+                this.data.logs = this.data.logs.filter(log => {
+                    if (log.supervisedAt) {
+                        const supervisedTime = new Date(log.supervisedAt).getTime();
+                        if (now - supervisedTime >= twentyFourHoursMs) {
+                            // También eliminar la tarea asociada si existe
+                            this.data.tasks = this.data.tasks.filter(t => t.id !== log.taskId);
+                            deletedCount++;
+                            return false; // Eliminar este log
+                        }
+                    }
+                    return true;
+                });
+
+                if (deletedCount > 0) {
+                    this.saveData();
+                    console.log(`Se eliminaron ${deletedCount} registro(s) supervisado(s) con más de 24h`);
+                    // Refrescar vistas si es necesario
+                    if (this.currentView === 'history') this.renderHistory();
+                    if (this.currentView === 'search') this.handleSearch();
+                }
+                return deletedCount;
+            },
+
             superviseLog(logId) {
                 const log = this.data.logs.find(l => l.id === logId);
                 if (log) {
@@ -1110,6 +1152,7 @@
                     this.saveData();
                 }
             },
+
 
             returnTask(logId) {
                 const log = this.data.logs.find(l => l.id === logId);
