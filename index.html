@@ -4,7 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestor de Tareas Pro</title>
-    <meta name="theme-color" content="#1d4ed8">
+    <meta name="theme-color" content="#1d4ed8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="Sistema profesional de gestión y seguimiento de tareas con supervisión, control y reportes.">
+    <meta name="application-name" content="GestorTareas">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GestorTareas">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./img/hapa_192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="./img/hapa_144.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./img/hapa_192.png">
+    <link rel="apple-touch-startup-image" href="./img/hapa_512.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./img/hapa_192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./img/hapa_512.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script>
@@ -69,7 +84,10 @@
                 <i class="ph-fill ph-check-square-offset text-2xl"></i>
                 <h1 class="font-bold text-lg tracking-wide">Gestor<span class="font-light">Tareas</span></h1>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <button id="btn-install" onclick="app.installApp()" class="hidden hover:text-blue-200 transition-colors relative" title="Instalar aplicación">
+                    <i class="ph-fill ph-download text-xl"></i>
+                </button>
                 <button onclick="app.toggleDarkMode()" class="hover:text-blue-200 transition-colors" title="Alternar modo oscuro">
                     <i id="dark-mode-icon" class="ph-fill ph-moon text-xl"></i>
                 </button>
@@ -298,6 +316,7 @@
             quill: null, // Instancia del editor de texto
             unsubscribe: null, // Suscripción de Firebase
             cleanupInterval: null, // Intervalo para limpiar registros supervisados
+            deferredPrompt: null, // Para el evento beforeinstallprompt
             
             toggleDarkMode() {
                 document.documentElement.classList.toggle('dark');
@@ -340,6 +359,26 @@
                 window.addEventListener('offline', () => this.updateConnectionStatus(false));
                 this.updateConnectionStatus(navigator.onLine);
 
+                // Escuchar el evento beforeinstallprompt para la instalación PWA
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    this.deferredPrompt = e;
+                    const installBtn = document.getElementById('btn-install');
+                    if (installBtn) {
+                        installBtn.classList.remove('hidden');
+                        // Animación sutil para llamar la atención
+                        installBtn.classList.add('animate-bounce');
+                        setTimeout(() => installBtn.classList.remove('animate-bounce'), 3000);
+                    }
+                });
+
+                window.addEventListener('appinstalled', () => {
+                    this.deferredPrompt = null;
+                    const installBtn = document.getElementById('btn-install');
+                    if (installBtn) installBtn.classList.add('hidden');
+                    this.showToast('Aplicación instalada correctamente', 'success');
+                });
+
                 // Revisar cada 60 segundos si hay registros supervisados que deban eliminarse
                 if (this.cleanupInterval) {
                     clearInterval(this.cleanupInterval);
@@ -347,6 +386,25 @@
                 this.cleanupInterval = setInterval(() => {
                     this.cleanupSupervisedLogs();
                 }, 60000); // 60,000 ms = 1 minuto
+            },
+
+            // Método para instalar la aplicación PWA
+            installApp() {
+                if (!this.deferredPrompt) {
+                    this.showToast('Tu navegador no soporta la instalación automática. Busca "Instalar app" en el menú.', 'info');
+                    return;
+                }
+                this.deferredPrompt.prompt();
+                this.deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        this.showToast('¡Gracias por instalar la aplicación!', 'success');
+                    } else {
+                        this.showToast('Puedes instalar la app más tarde desde este botón', 'info');
+                    }
+                    this.deferredPrompt = null;
+                    const installBtn = document.getElementById('btn-install');
+                    if (installBtn) installBtn.classList.add('hidden');
+                });
             },
 
             updateConnectionStatus(isOnline) {

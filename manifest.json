@@ -1,0 +1,98 @@
+{
+  "name": "Gestor de Tareas Pro",
+  "short_name": "GestorTareas",
+  "description": "Sistema profesional de gestión y seguimiento de tareas con supervisión, control de inventario y reportes.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "theme_color": "#1d4ed8",
+  "background_color": "#f8fafc",
+  "categories": ["productivity", "business", "utilities"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "icons": [
+    {
+      "src": "img/hapa_48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/hapa_72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "img/hapa_96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/hapa_144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "img/hapa_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "img/hapa_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Tareas Pendientes",
+      "short_name": "Tareas",
+      "description": "Ver y completar tareas pendientes",
+      "url": "./index.html#search",
+      "icons": [
+        {
+          "src": "img/hapa_96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Registros",
+      "short_name": "Registros",
+      "description": "Historial de tareas completadas",
+      "url": "./index.html#history",
+      "icons": [
+        {
+          "src": "img/hapa_96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Panel de Administración",
+      "short_name": "Ajustes",
+      "description": "Administrar tareas, áreas y personal",
+      "url": "./index.html#admin",
+      "icons": [
+        {
+          "src": "img/hapa_96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

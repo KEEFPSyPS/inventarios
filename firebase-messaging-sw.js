@@ -3,11 +3,17 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
 
 // --- Cache Logic ---
-const CACHE_NAME = 'gestor-tareas-hepa-v7'; // v7 - Network First estricto
+const CACHE_NAME = 'gestor-tareas-hepa-v8'; // v8 - PWA completa con iconos
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './img/hapa_48.png',
+  './img/hapa_72.png',
+  './img/hapa_96.png',
+  './img/hapa_144.png',
+  './img/hapa_192.png',
+  './img/hapa_512.png'
 ];
 
 self.addEventListener('install', event => {

@@ -1,8 +1,14 @@
-const CACHE_NAME = 'gestor-tareas-hepa-v7';
+const CACHE_NAME = 'gestor-tareas-hepa-v8';
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './img/hapa_48.png',
+  './img/hapa_72.png',
+  './img/hapa_96.png',
+  './img/hapa_144.png',
+  './img/hapa_192.png',
+  './img/hapa_512.png'
 ];
 
 self.addEventListener('install', event => {
