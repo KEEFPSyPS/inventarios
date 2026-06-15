@@ -56,3 +56,16 @@ self.addEventListener('fetch', event => {
     }).catch(() => caches.match(event.request))
   );
 });
+
+// Escuchar mensajes desde la página para mostrar notificaciones
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    self.registration.showNotification(event.data.title, {
+      body: event.data.body,
+      icon: './img/hapa_192.png',
+      badge: './img/hapa_96.png',
+      vibrate: [200, 100, 200],
+      requireInteraction: true
+    });
+  }
+});

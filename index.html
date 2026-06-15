@@ -29,6 +29,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js"></script>
     <!-- Quill Editor -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
@@ -296,6 +297,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        const messaging = firebase.messaging.isSupported() ? firebase.messaging() : null;
 
         // --- Core Application Logic ---
         const app = {
@@ -317,6 +319,7 @@
             unsubscribe: null, // Suscripción de Firebase
             cleanupInterval: null, // Intervalo para limpiar registros supervisados
             deferredPrompt: null, // Para el evento beforeinstallprompt
+            fcmToken: null, // Token de Firebase Cloud Messaging para notificaciones push
             
             toggleDarkMode() {
                 document.documentElement.classList.toggle('dark');
@@ -342,6 +345,12 @@
                         document.getElementById('bottom-nav').classList.remove('hidden');
                         this.loadData();
                         this.switchView('search');
+                        
+                        // Solicitar permiso de notificaciones push después del login
+                        setTimeout(() => {
+                            this.requestNotificationPermission();
+                            this.setupForegroundMessageListener();
+                        }, 2000);
                     } else {
                         document.getElementById('btn-logout').classList.add('hidden');
                         document.getElementById('bottom-nav').classList.add('hidden');
@@ -406,6 +415,114 @@
                     if (installBtn) installBtn.classList.add('hidden');
                 });
             },
+
+            // --- Firebase Cloud Messaging (Notificaciones Push) ---
+            async requestNotificationPermission() {
+                if (!messaging) {
+                    console.log('Firebase Messaging no está soportado en este navegador.');
+                    return;
+                }
+                try {
+                    // Verificar si ya tenemos permiso
+                    if (Notification.permission === 'denied') {
+                        console.log('Permiso de notificaciones previamente denegado.');
+                        return;
+                    }
+                    
+                    // Si ya tenemos un token guardado, no necesitamos pedir permiso de nuevo
+                    const savedToken = localStorage.getItem('fcmToken');
+                    if (savedToken && Notification.permission === 'granted') {
+                        this.fcmToken = savedToken;
+                        console.log('Token FCM recuperado de localStorage.');
+                        return;
+                    }
+                    
+                    // Registrar el service worker de Firebase Messaging
+                    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+                    console.log('Service Worker de Firebase Messaging registrado:', registration);
+                    
+                    // Solicitar permiso de notificación
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        console.log('Permiso de notificaciones concedido.');
+                        // Obtener el token FCM - intentar sin VAPID key primero
+                        try {
+                            const currentToken = await messaging.getToken();
+                            if (currentToken) {
+                                this.fcmToken = currentToken;
+                                console.log('Token FCM obtenido:', currentToken);
+                                await this.saveFcmToken(currentToken);
+                                this.showToast('Notificaciones push activadas', 'success');
+                                return;
+                            }
+                        } catch (e) {
+                            console.log('Error obteniendo token sin VAPID, intentando con VAPID key...');
+                        }
+                        
+                        // Si falló, intentar con VAPID key (necesario para Chrome)
+                        // IMPORTANTE: Reemplaza esta clave con la de tu proyecto Firebase
+                        // Ve a: Consola Firebase > Configuración del proyecto > Cloud Messaging > Clave web push
+                        const vapidKey = '`BBqcKJi57Y1obPgAKZ0sfIJxJk8wD2nKWd8TkXoJENRcZ9kJ2pDOH6-2N8422mnoou4WGxb9teUcMVPeTLoQBK0`.
+';
+                        const currentToken = await messaging.getToken({ vapidKey: vapidKey });
+                        if (currentToken) {
+                            this.fcmToken = currentToken;
+                            console.log('Token FCM obtenido con VAPID:', currentToken);
+                            await this.saveFcmToken(currentToken);
+                            this.showToast('Notificaciones push activadas', 'success');
+                        } else {
+                            console.log('No se pudo obtener el token FCM.');
+                        }
+                    } else {
+                        console.log('Permiso de notificaciones denegado.');
+                        this.showToast('Permiso de notificaciones denegado. Actívalo desde la configuración del navegador.', 'info');
+                    }
+                } catch (error) {
+                    console.error('Error al solicitar permiso de notificaciones:', error);
+                }
+            },
+
+
+            async saveFcmToken(token) {
+                // Buscar el empleado actual por su correo electrónico
+                const currentUser = auth.currentUser;
+                if (!currentUser) return;
+                
+                const employee = this.data.employees.find(e => e.email === currentUser.email);
+                if (employee) {
+                    // Guardar el token en el empleado
+                    employee.fcmToken = token;
+                    // También guardar en localStorage como respaldo
+                    localStorage.setItem('fcmToken', token);
+                    await this.saveData();
+                    console.log(`Token FCM guardado para el empleado ${employee.name}`);
+                } else {
+                    console.log('No se encontró un registro de empleado para el usuario actual. Guardando token en localStorage.');
+                    localStorage.setItem('fcmToken', token);
+                }
+            },
+
+            // Escuchar mensajes en primer plano (cuando la app está abierta)
+            setupForegroundMessageListener() {
+                if (!messaging) return;
+                
+                messaging.onMessage((payload) => {
+                    console.log('Mensaje recibido en primer plano:', payload);
+                    // Mostrar una notificación toast en la app
+                    const title = payload.notification?.title || 'Nueva notificación';
+                    const body = payload.notification?.body || '';
+                    this.showToast(`${title}: ${body}`, 'info');
+                    
+                    // También mostrar notificación del sistema si es posible
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification(title, {
+                            body: body,
+                            icon: './img/hapa_192.png'
+                        });
+                    }
+                });
+            },
+
 
             updateConnectionStatus(isOnline) {
                 const dot = document.getElementById('connection-dot');

@@ -13,8 +13,10 @@
   "background_color": "#f8fafc",
   "categories": ["productivity", "business", "utilities"],
   "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "gcm_sender_id": "103953800507",
   "prefer_related_applications": false,
   "related_applications": [],
+
   "icons": [
     {
       "src": "img/hapa_48.png",

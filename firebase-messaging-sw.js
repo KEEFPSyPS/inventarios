@@ -75,13 +75,50 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
+// Manejar notificaciones en segundo plano (cuando la app no está visible)
 messaging.onBackgroundMessage(function(payload) {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
+  console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
+  
+  const notificationTitle = payload.notification?.title || 'Nueva notificación';
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: payload.notification.icon || './img/hapa_192.png'
+    body: payload.notification?.body || '',
+    icon: payload.notification?.icon || './img/hapa_192.png',
+    badge: './img/hapa_96.png',
+    vibrate: [200, 100, 200],
+    tag: 'task-notification',
+    renotify: true,
+    requireInteraction: true,
+    data: payload.data || {}
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Manejar clic en la notificación
+self.addEventListener('notificationclick', function(event) {
+  console.log('[firebase-messaging-sw.js] Notificación clickeada:', event.notification);
+  
+  event.notification.close();
+  
+  // Determinar la URL a abrir
+  const urlToOpen = './index.html';
+  
+  const promiseChain = self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then((windowClients) => {
+    // Verificar si ya hay una ventana abierta de la app
+    for (let i = 0; i < windowClients.length; i++) {
+      const client = windowClients[i];
+      if (client.url.includes('index.html') && 'focus' in client) {
+        return client.focus();
+      }
+    }
+    // Si no hay ventana abierta, abrir una nueva
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(urlToOpen);
+    }
+  });
+  
+  event.waitUntil(promiseChain);
 });
