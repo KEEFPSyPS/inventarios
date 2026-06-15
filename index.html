@@ -827,10 +827,15 @@
                                 </div>
                                 <div>
                                     <label for="log-emp-${t.id}" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Personal Responsable</label>
-                                    <select id="log-emp-${t.id}" required class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                        <option value="">Seleccione el empleado...</option>
-                                        <!-- Populated via JS -->
-                                    </select>
+                                    <div class="flex gap-2">
+                                        <select id="log-emp-${t.id}" required class="flex-1 p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                            <option value="">Seleccione el empleado...</option>
+                                            <!-- Populated via JS -->
+                                        </select>
+                                        <button type="button" onclick="app.updateTaskEmployee('${t.id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors" title="Cambiar responsable">
+                                            <i class="ph ph-user-switch text-lg"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 ${this.generateTaskInputs(t)}
                                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mt-2">
@@ -901,7 +906,43 @@
                 }
             },
 
+            // --- Cambiar responsable de una tarea pendiente ---
+            updateTaskEmployee(taskId) {
+                const task = this.data.tasks.find(t => t.id === taskId);
+                if (!task) {
+                    this.showToast('Tarea no encontrada', 'error');
+                    return;
+                }
+
+                const empSelect = document.getElementById(`log-emp-${taskId}`);
+                if (!empSelect) {
+                    this.showToast('Error al obtener el selector de personal', 'error');
+                    return;
+                }
+
+                const newEmployeeId = empSelect.value;
+                if (!newEmployeeId) {
+                    this.showToast('Seleccione un empleado primero', 'error');
+                    return;
+                }
+
+                const employee = this.data.employees.find(e => e.id === newEmployeeId);
+                if (!employee) {
+                    this.showToast('Empleado no encontrado', 'error');
+                    return;
+                }
+
+                // Actualizar el employeeId de la tarea
+                task.employeeId = newEmployeeId;
+                this.saveData();
+                
+                // Refrescar la vista para que se actualice el nombre mostrado
+                this.handleSearch();
+                this.showToast(`Responsable cambiado a: ${employee.name}`, 'success');
+            },
+
             submitLog(event, taskId) {
+
                 event.preventDefault();
                 const task = this.data.tasks.find(t => t.id === taskId);
                 const areaId = task ? task.areaId : null;
