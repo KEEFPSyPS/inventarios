@@ -462,8 +462,7 @@
                         // Si falló, intentar con VAPID key (necesario para Chrome)
                         // IMPORTANTE: Reemplaza esta clave con la de tu proyecto Firebase
                         // Ve a: Consola Firebase > Configuración del proyecto > Cloud Messaging > Clave web push
-                        const vapidKey = '`BBqcKJi57Y1obPgAKZ0sfIJxJk8wD2nKWd8TkXoJENRcZ9kJ2pDOH6-2N8422mnoou4WGxb9teUcMVPeTLoQBK0`.
-';
+                        const vapidKey = 'BBqcKJi57Y1obPgAKZ0sfIJxJk8wD2nKWd8TkXoJENRcZ9kJ2pDOH6-2N8422mnoou4WGxb9teUcMVPeTLoQBK0';
                         const currentToken = await messaging.getToken({ vapidKey: vapidKey });
                         if (currentToken) {
                             this.fcmToken = currentToken;
