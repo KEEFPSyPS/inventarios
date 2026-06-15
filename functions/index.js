@@ -55,39 +55,24 @@ exports.sendNewTaskNotification = onDocumentWritten(
     // Obtener la lista de empleados
     const employees = afterData.employees || [];
 
-    // Procesar cada tarea nueva
+    // Procesar cada tarea nueva - NOTIFICACIONES GLOBALES
     for (const task of newTasks) {
-      // Si la tarea no tiene un empleado asignado, notificar a todos
-      if (!task.employeeId) {
-        logger.log(`Tarea "${task.title}" no tiene empleado asignado. Enviando a todos...`);
-        // Enviar a todos los empleados que tengan token FCM
-        for (const emp of employees) {
-          if (emp.fcmToken) {
-            await sendNotification(
-              emp.fcmToken,
-              "Nueva Tarea Disponible",
-              `Se ha creado una nueva tarea: ${task.title}`,
-              task
-            );
-          }
+      logger.log(`Tarea nueva detectada: "${task.title}". Enviando notificación global a todos los dispositivos...`);
+      
+      // Enviar a TODOS los empleados que tengan token FCM (notificación global)
+      let sentCount = 0;
+      for (const emp of employees) {
+        if (emp.fcmToken) {
+          await sendNotification(
+            emp.fcmToken,
+            "Nueva Tarea Disponible",
+            `Se ha creado una nueva tarea: ${task.title}`,
+            task
+          );
+          sentCount++;
         }
-        continue;
       }
-
-      // Buscar el empleado asignado
-      const employee = employees.find((e) => e.id === task.employeeId);
-
-      if (employee && employee.fcmToken) {
-        logger.log(`Enviando notificación a ${employee.name} por la tarea: ${task.title}`);
-        await sendNotification(
-          employee.fcmToken,
-          "Nueva Tarea Asignada",
-          `Se te ha asignado la tarea: ${task.title}`,
-          task
-        );
-      } else if (employee) {
-        logger.log(`El empleado ${employee.name} no tiene token FCM registrado.`);
-      }
+      logger.log(`Notificación enviada a ${sentCount} dispositivo(s) para la tarea: ${task.title}`);
     }
 
     return null;

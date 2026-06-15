@@ -33,21 +33,24 @@ exports.sendNewTaskNotification = functions.firestore
           continue; // Skip if the task is not assigned to anyone
         }
 
-        // Find the employee record to get their notification token
-        const employee = afterData.employees.find((e) => e.id === task.employeeId);
-
-        if (employee && employee.fcmToken) {
-          const payload = {
-            notification: {
-              title: "Nueva Tarea Asignada",
-              body: `Se te ha asignado la tarea: ${task.title}`,
-              icon: "img/hapa_512.png",
-            },
-          };
-
-          console.log(`Enviando notificación a ${employee.name} (token: ...${employee.fcmToken.slice(-10)})`);
-          await admin.messaging().sendToDevice(employee.fcmToken, payload);
+      // Enviar notificación global a TODOS los empleados con token FCM
+        const employees = afterData.employees || [];
+        let sentCount = 0;
+        for (const emp of employees) {
+          if (emp.fcmToken) {
+            const payload = {
+              notification: {
+                title: "Nueva Tarea Disponible",
+                body: `Se ha creado una nueva tarea: ${task.title}`,
+                icon: "img/hapa_512.png",
+              },
+            };
+            console.log(`Enviando notificación global a dispositivo (token: ...${emp.fcmToken.slice(-10)})`);
+            await admin.messaging().sendToDevice(emp.fcmToken, payload);
+            sentCount++;
+          }
         }
+        console.log(`Notificación enviada a ${sentCount} dispositivo(s) para la tarea: ${task.title}`);
       }
       return null;
     });

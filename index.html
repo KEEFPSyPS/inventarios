@@ -239,7 +239,7 @@
                     <h3 class="font-semibold text-slate-700 dark:text-slate-200 mb-1">Añadir Personal</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input type="text" id="new-emp-name" placeholder="Nombre completo" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        <input type="email" id="new-emp-email" placeholder="Correo electrónico de sesión" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="hidden" id="new-emp-email" value="">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <input type="text" id="new-emp-role" placeholder="Cargo (ej. Almacenista)" required class="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
@@ -483,21 +483,24 @@
 
 
             async saveFcmToken(token) {
-                // Buscar el empleado actual por su correo electrónico
-                const currentUser = auth.currentUser;
-                if (!currentUser) return;
+                // Guardar el token globalmente en localStorage
+                localStorage.setItem('fcmToken', token);
+                this.fcmToken = token;
                 
-                const employee = this.data.employees.find(e => e.email === currentUser.email);
-                if (employee) {
-                    // Guardar el token en el empleado
-                    employee.fcmToken = token;
-                    // También guardar en localStorage como respaldo
-                    localStorage.setItem('fcmToken', token);
+                // Guardar el token en TODOS los empleados que no tengan token,
+                // para que las notificaciones sean globales a todos los dispositivos
+                let updated = false;
+                for (const emp of this.data.employees) {
+                    if (!emp.fcmToken) {
+                        emp.fcmToken = token;
+                        updated = true;
+                    }
+                }
+                if (updated) {
                     await this.saveData();
-                    console.log(`Token FCM guardado para el empleado ${employee.name}`);
+                    console.log('Token FCM guardado globalmente para todos los empleados sin token.');
                 } else {
-                    console.log('No se encontró un registro de empleado para el usuario actual. Guardando token en localStorage.');
-                    localStorage.setItem('fcmToken', token);
+                    console.log('Token FCM guardado en localStorage.');
                 }
             },
 
@@ -565,8 +568,8 @@
                                 { id: 'a2', name: 'Soporte Técnico' }
                             ];
                             this.data.employees = [
-                                { id: 'e1', name: 'Juan Pérez', email: 'juan@example.com', role: 'Ingeniero', areaId: 'a1' },
-                                { id: 'e2', name: 'María García', email: 'maria@example.com', role: 'Técnico', areaId: 'a2' }
+                                { id: 'e1', name: 'Juan Pérez', role: 'Ingeniero', areaId: 'a1' },
+                                { id: 'e2', name: 'María García', role: 'Técnico', areaId: 'a2' }
                             ];
                             const now = Date.now();
                             const dayMs = 24 * 60 * 60 * 1000;
@@ -578,15 +581,9 @@
                             this.saveData();
                         }
 
-                        // Find current user's employee record
-                        const currentUser = auth.currentUser;
-                        this.currentUserEmployeeId = null; // Reset
-                        if (currentUser && this.data.employees) {
-                            const myEmployeeRecord = this.data.employees.find(e => e.email === currentUser.email);
-                            if (myEmployeeRecord) {
-                                this.currentUserEmployeeId = myEmployeeRecord.id;
-                            }
-                        }
+                        // Ya no se busca por email - currentUserEmployeeId se deja como null
+                        // para que no haya dependencia de correo electrónico en los empleados
+                        this.currentUserEmployeeId = null;
                         
                         // Limpiar registros supervisados que ya cumplieron 24h (incluye entradas antiguas)
                         this.cleanupSupervisedLogs();
@@ -1666,20 +1663,13 @@
             addEmployee(e) {
                 e.preventDefault();
                 const name = document.getElementById('new-emp-name').value;
-                const email = document.getElementById('new-emp-email').value;
                 const role = document.getElementById('new-emp-role').value;
                 const areaId = document.getElementById('new-emp-area').value;
 
-                if (this.data.employees.some(emp => emp.email === email)) {
-                    this.showToast('Este correo ya está registrado.', 'error');
-                    return;
-                }
-
-                this.data.employees.push({ id: 'e_' + Date.now(), name, email, role, areaId });
+                this.data.employees.push({ id: 'e_' + Date.now(), name, role, areaId });
                 this.saveData();
                 
                 document.getElementById('new-emp-name').value = '';
-                document.getElementById('new-emp-email').value = '';
                 document.getElementById('new-emp-role').value = '';
                 document.getElementById('new-emp-area').value = '';
                 this.renderAdminEmployees();
@@ -1710,7 +1700,6 @@
                             <p class="font-bold text-slate-700">${e.name} ${e.id === this.currentUserEmployeeId ? '<span class="text-xs text-blue-500">(Tú)</span>' : ''}</p>
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">${e.role}</span>
-                                <span class="text-xs text-slate-400" title="${e.email}"><i class="ph ph-envelope-simple"></i> Correo</span>
                                 <span class="text-xs text-slate-400"><i class="ph ph-map-pin"></i> ${area.name}</span>
                             </div>
                         </div>
