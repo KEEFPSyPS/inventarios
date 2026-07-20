@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <title>Gestor de Tareas Pro</title>
     <meta name="theme-color" content="#1d4ed8" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
@@ -60,6 +60,15 @@
 
         /* Estilos móviles base */
         body { -webkit-tap-highlight-color: transparent; }
+        
+        /* Forzar que el layout se reajuste al cambiar de orientación */
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        .flex-col.h-screen { height: 100vh; height: 100dvh; } /* dvh = dynamic viewport height */
+        
+        /* Transición suave al cambiar orientación */
+        #bottom-nav, #main-scroll, header {
+            transition: padding 0.2s ease, height 0.2s ease;
+        }
         
         /* Área segura en dispositivos móviles (iOS) */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
@@ -2170,6 +2179,69 @@
 
             btnScrollTop.addEventListener('click', () => {
                 mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            // ============================================================
+            //  FORZAR REAJUSTE AL CAMBIAR DE ORIENTACIÓN (Tabletas/Móviles)
+            // ============================================================
+            function handleOrientationChange() {
+                // Pequeño retraso para que el navegador termine de re-calcular el layout
+                setTimeout(() => {
+                    // Forzar que el body y html recalculen su altura
+                    document.body.style.height = '100dvh';
+                    
+                    // Re-calcular el padding del main según la orientación
+                    const mainEl = document.getElementById('main-scroll');
+                    const navEl = document.getElementById('bottom-nav');
+                    
+                    if (mainEl && navEl && !navEl.classList.contains('hidden')) {
+                        const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+                        const isSmallHeight = window.innerHeight <= 500;
+                        
+                        if (isLandscape && isSmallHeight) {
+                            mainEl.style.paddingBottom = '3.5rem';
+                        } else {
+                            mainEl.style.paddingBottom = '5rem';
+                        }
+                    }
+                    
+                    // Forzar reflow del main para que se ajuste el scroll
+                    if (mainScroll) {
+                        mainScroll.style.overflow = 'hidden';
+                        // Forzar reflow
+                        void mainScroll.offsetHeight;
+                        mainScroll.style.overflow = 'auto';
+                    }
+                    
+                    // Refrescar la vista actual si es necesario
+                    if (app.currentView === 'search') {
+                        app.handleSearch();
+                    } else if (app.currentView === 'history') {
+                        app.renderHistory();
+                    }
+                    
+                    console.log('Orientación cambiada - Layout reajustado');
+                }, 150);
+            }
+
+            // Escuchar cambios de orientación (API moderna)
+            if (screen.orientation) {
+                screen.orientation.addEventListener('change', handleOrientationChange);
+            }
+            
+            // Fallback: escuchar el evento resize (funciona en todos los navegadores)
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    // Solo ejecutar si el ancho y alto cambiaron significativamente (cambio de orientación)
+                    handleOrientationChange();
+                }, 300);
+            });
+            
+            // También escuchar el evento específico de orientación en dispositivos móviles
+            window.addEventListener('orientationchange', () => {
+                handleOrientationChange();
             });
         });
 
