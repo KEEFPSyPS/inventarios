@@ -64,6 +64,21 @@
         /* Área segura en dispositivos móviles (iOS) */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
         
+        /* Padding inferior para el main que asegura espacio para el nav inferior fijo en TODAS las orientaciones móviles */
+        .pb-safe-nav { padding-bottom: 5rem; }
+        @media (min-width: 768px) {
+            .pb-safe-nav { padding-bottom: 0; }
+        }
+        @media (orientation: landscape) and (max-height: 500px) {
+            .pb-safe-nav { padding-bottom: 3.5rem; }
+        }
+        /* Ajustar el nav en landscape para que sea más compacto */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #bottom-nav .flex-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+            #bottom-nav i { font-size: 1.25rem; margin-bottom: 0; }
+            #bottom-nav span { font-size: 8px; }
+        }
+        
         /* Estilos para el editor Quill y contenido enriquecido */
         .ql-toolbar.ql-snow { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; border-color: #e2e8f0; font-family: inherit; }
         .ql-container.ql-snow { border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; border-color: #e2e8f0; font-family: inherit; font-size: 0.875rem; }
@@ -242,8 +257,8 @@
         </div>
     </header>
 
-    <!-- Main Content Area (Scrollable) -->
-    <main class="flex-1 overflow-y-auto relative pb-20 md:pb-0" id="main-scroll">
+    <!-- Main Content Area (Scrollable) - pb-safe-nav asegura espacio para el nav inferior fijo en móvil -->
+    <main class="flex-1 overflow-y-auto relative pb-safe-nav" id="main-scroll">
         
         <!-- ================= VIEW: LOGIN ================= -->
         <section id="view-login" class="p-4 max-w-sm mx-auto mt-10 fade-in flex flex-col gap-4">
@@ -400,8 +415,8 @@
 
     </main>
 
-    <!-- Bottom Navigation (Mobile mostly, fixed bottom) -->
-    <nav id="bottom-nav" class="hidden bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 md:relative absolute bottom-0 w-full z-20 pb-safe transition-colors">
+    <!-- Bottom Navigation (Mobile mostly, fixed bottom) - Siempre visible en móvil incluso en landscape -->
+    <nav id="bottom-nav" class="hidden bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 fixed bottom-0 left-0 right-0 w-full z-20 pb-safe transition-colors shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <div class="flex justify-around max-w-2xl mx-auto">
             <button onclick="app.switchView('search')" id="nav-search" class="flex-1 py-3 flex flex-col items-center text-blue-600 transition-colors">
                 <i class="ph-fill ph-list-checks text-2xl mb-1"></i>
@@ -418,8 +433,8 @@
         </div>
     </nav>
 
-    <!-- Botón Volver Arriba -->
-    <button id="btn-scroll-top" class="fixed bottom-24 md:bottom-10 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-40 transition-all duration-300 opacity-0 translate-y-10 pointer-events-none flex items-center justify-center" title="Volver arriba">
+    <!-- Botón Volver Arriba - Ajustado para landscape móvil -->
+    <button id="btn-scroll-top" class="fixed bottom-24 md:bottom-10 landscape:bottom-16 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-40 transition-all duration-300 opacity-0 translate-y-10 pointer-events-none flex items-center justify-center" title="Volver arriba">
         <i class="ph ph-arrow-up text-xl font-bold"></i>
     </button>
 
